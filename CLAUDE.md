@@ -22,7 +22,20 @@ pnpm build        # Production build
 pnpm lint         # Run ESLint
 pnpm db:push      # Push schema to database
 pnpm db:seed      # Seed database with admin user
+pnpm db:studio    # Open Prisma Studio
 ```
+
+## Environment Table Prefixes
+
+Tables are prefixed based on `VERCEL_ENV` to isolate data per environment:
+
+| Environment | VERCEL_ENV | Prefix | Example |
+|-------------|------------|--------|---------|
+| Production | `production` | (none) | `User` |
+| Preview | `preview` | `preview_` | `preview_User` |
+| Development | `development` or unset | `dev_` | `dev_User` |
+
+The schema is auto-generated before Prisma commands. See `scripts/generate-prisma-schema.ts`.
 
 ## Project Structure
 

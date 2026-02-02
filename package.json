@@ -7,9 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate",
-    "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts"
+    "prisma:generate": "tsx scripts/generate-prisma-schema.ts && prisma generate --schema=prisma/schema.generated.prisma",
+    "postinstall": "pnpm prisma:generate",
+    "db:push": "tsx scripts/generate-prisma-schema.ts && prisma db push --schema=prisma/schema.generated.prisma",
+    "db:seed": "tsx scripts/generate-prisma-schema.ts && tsx prisma/seed.ts",
+    "db:studio": "tsx scripts/generate-prisma-schema.ts && prisma studio --schema=prisma/schema.generated.prisma"
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",
