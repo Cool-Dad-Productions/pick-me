@@ -17,25 +17,36 @@ pick-me (Book Rating Predictor): A tool to predict how much you'll enjoy a book 
 ## Common Commands
 
 ```bash
-pnpm dev          # Start development server
-pnpm build        # Production build
-pnpm lint         # Run ESLint
-pnpm db:push      # Push schema to database
-pnpm db:seed      # Seed database with admin user
-pnpm db:studio    # Open Prisma Studio
+pnpm dev              # Start development server
+pnpm build            # Production build
+pnpm lint             # Run ESLint
+pnpm db:migrate:dev   # Create new migration (local)
+pnpm db:migrate:deploy # Apply pending migrations
+pnpm db:seed          # Seed database with admin user
+pnpm db:studio        # Open Prisma Studio
 ```
 
-## Environment Table Prefixes
+## Database (Neon Branching)
 
-Tables are prefixed based on `VERCEL_ENV` to isolate data per environment:
+Each environment uses a separate Neon branch:
 
-| Environment | VERCEL_ENV | Prefix | Example |
-|-------------|------------|--------|---------|
-| Production | `production` | (none) | `User` |
-| Preview | `preview` | `preview_` | `preview_User` |
-| Development | `development` or unset | `dev_` | `dev_User` |
+| Environment | Neon Branch | Vercel Setting |
+|-------------|-------------|----------------|
+| Production | `main` | Production env var |
+| Preview | `preview` | Preview env var |
+| Development | `dev` | Local `.env` |
 
-The schema is auto-generated before Prisma commands. See `scripts/generate-prisma-schema.ts`.
+Branches are copy-on-write snapshots. Preview and dev inherit production data but changes are isolated.
+
+## Database Migrations
+
+### Creating a New Migration
+
+1. Edit `prisma/schema.prisma`
+2. Run `pnpm db:migrate:dev --name descriptive-name`
+3. Review generated SQL in `prisma/migrations/<timestamp>_descriptive-name/`
+4. Commit both `schema.prisma` and the migration folder
+5. Push - migrations auto-apply on deploy
 
 ## Project Structure
 
