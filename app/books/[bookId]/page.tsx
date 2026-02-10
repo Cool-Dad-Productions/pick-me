@@ -117,10 +117,10 @@ export default function BookDetailPage({ params }: BookDetailPageProps) {
 
           <div className="flex-1">
             <h1 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
-              {book.title}
+              {typeof book.title === 'string' ? book.title : 'Unknown Title'}
             </h1>
             <p className="text-lg text-neutral-600 dark:text-neutral-400 mt-1">
-              {book.authors.join(', ') || 'Unknown author'}
+              {(Array.isArray(book.authors) ? book.authors.join(', ') : '') || 'Unknown author'}
             </p>
             {book.isbn13 && (
               <p className="text-sm text-neutral-500 mt-2">
