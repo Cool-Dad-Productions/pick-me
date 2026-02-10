@@ -57,10 +57,18 @@ export async function searchBooks(params: {
     const isbn10 = doc.isbn?.find((i) => i.length === 10);
     const normalizedIsbn = isbn13 || (isbn10 ? normalizeIsbn(isbn10) : undefined);
 
+    // Ensure title is always a string (Open Library may return unexpected types)
+    const title = typeof doc.title === 'string' ? doc.title : String(doc.title || 'Unknown Title');
+
+    // Ensure authors is always a string array
+    const authors = Array.isArray(doc.author_name)
+      ? doc.author_name.filter((a): a is string => typeof a === 'string')
+      : [];
+
     return {
       externalId: doc.key,
-      title: doc.title,
-      authors: doc.author_name || [],
+      title,
+      authors,
       isbn13: normalizedIsbn || undefined,
       coverUrl: doc.cover_i
         ? `${COVERS_API}/b/id/${doc.cover_i}-M.jpg`
@@ -96,9 +104,12 @@ export async function lookupByIsbn(isbn: string): Promise<NormalizedBook | null>
   const isbn13 = data.isbn_13?.[0] || normalizedIsbn;
   const coverId = data.covers?.[0];
 
+  // Ensure title is always a string
+  const title = typeof data.title === 'string' ? data.title : 'Unknown Title';
+
   return {
     isbn13,
-    title: data.title || 'Unknown Title',
+    title,
     authors: authorNames,
     coverUrl: coverId ? `${COVERS_API}/b/id/${coverId}-M.jpg` : undefined,
     metadata: data,
@@ -113,7 +124,8 @@ async function fetchAuthorNames(authorKeys: string[]): Promise<string[]> {
       const response = await fetch(`${OPEN_LIBRARY_API}${key}.json`);
       if (response.ok) {
         const data = await response.json();
-        if (data.name) {
+        // Ensure name is a string before adding to array
+        if (typeof data.name === 'string') {
           names.push(data.name);
         }
       }

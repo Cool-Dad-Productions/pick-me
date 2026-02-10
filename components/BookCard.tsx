@@ -36,10 +36,10 @@ export function BookCard({ book, href, onClick }: BookCardProps) {
 
       <div className="flex-1 min-w-0">
         <h3 className="font-medium text-neutral-900 dark:text-neutral-100 truncate">
-          {book.title}
+          {typeof book.title === 'string' ? book.title : 'Unknown Title'}
         </h3>
         <p className="text-sm text-neutral-600 dark:text-neutral-400 truncate">
-          {book.authors.join(', ') || 'Unknown author'}
+          {(Array.isArray(book.authors) ? book.authors.join(', ') : '') || 'Unknown author'}
         </p>
         {book.isbn13 && (
           <p className="text-xs text-neutral-500 mt-1">
