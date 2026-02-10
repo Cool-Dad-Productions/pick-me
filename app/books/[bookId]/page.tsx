@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
@@ -9,12 +10,8 @@ import { PredictionDisplay } from '@/components/PredictionDisplay';
 import type { Book } from '@prisma/client';
 import type { PredictionResult } from '@/types';
 
-interface BookDetailPageProps {
-  params: Promise<{ bookId: string }>;
-}
-
-export default function BookDetailPage({ params }: BookDetailPageProps) {
-  const { bookId } = use(params);
+export default function BookDetailPage() {
+  const { bookId } = useParams<{ bookId: string }>();
   const [book, setBook] = useState<Book | null>(null);
   const [prediction, setPrediction] = useState<PredictionResult | null>(null);
   const [loading, setLoading] = useState(true);
