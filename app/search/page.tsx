@@ -1,162 +1,247 @@
-'use client';
+"use client"
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Card } from '@/components/ui/Card';
-import { BookCard } from '@/components/BookCard';
-import type { BookCandidate } from '@/types';
-import type { Book } from '@prisma/client';
+import React from "react"
+
+import { useState, useCallback } from "react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { BookCard } from "@/components/book-card"
+import type { Book } from "@/lib/types"
+import { Search, Hash, Loader2, BookX, AlertCircle } from "lucide-react"
+
+// API response types
+interface BookCandidate {
+  externalId: string
+  title: string
+  authors: string[]
+  isbn13?: string
+  coverUrl?: string
+}
+
+interface ApiBook {
+  id: string
+  isbn13: string
+  title: string
+  authors: string[]
+  coverUrl?: string
+}
 
 export default function SearchPage() {
-  const router = useRouter();
-  const [isbn, setIsbn] = useState('');
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<BookCandidate[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [mode, setMode] = useState<"title" | "isbn">("title")
+  const [query, setQuery] = useState("")
+  const [results, setResults] = useState<Book[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  async function handleIsbnLookup() {
-    if (!isbn.trim()) return;
+  const handleSearch = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!query.trim()) return
 
-    setLoading(true);
-    setError('');
-    setResults([]);
+      setIsSearching(true)
+      setHasSearched(true)
+      setError(null)
 
-    try {
-      const response = await fetch(`/api/books/isbn/${encodeURIComponent(isbn.trim())}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Lookup failed');
-        return;
-      }
-
-      const book: Book = data.book;
-      router.push(`/books/${book.id}`);
-    } catch {
-      setError('Failed to lookup ISBN');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleSearch() {
-    if (!query.trim()) return;
-
-    setLoading(true);
-    setError('');
-    setResults([]);
-
-    try {
-      const response = await fetch(`/api/books/search?q=${encodeURIComponent(query.trim())}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || 'Search failed');
-        return;
-      }
-
-      setResults(data.results);
-    } catch {
-      setError('Failed to search books');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleSelectBook(book: BookCandidate) {
-    if (book.isbn13) {
-      setLoading(true);
       try {
-        const response = await fetch(`/api/books/isbn/${book.isbn13}`);
-        const data = await response.json();
+        if (mode === "isbn") {
+          const res = await fetch(`/api/books/isbn/${encodeURIComponent(query.trim())}`)
 
-        if (response.ok) {
-          router.push(`/books/${data.book.id}`);
-          return;
+          if (res.status === 401) {
+            setError("Please sign in to search for books")
+            setResults([])
+            return
+          }
+
+          if (res.status === 400) {
+            setError("Invalid ISBN format. Please check and try again.")
+            setResults([])
+            return
+          }
+
+          if (res.status === 404) {
+            setResults([])
+            return
+          }
+
+          if (!res.ok) {
+            setError("Something went wrong. Please try again.")
+            setResults([])
+            return
+          }
+
+          const { book } = await res.json() as { book: ApiBook }
+          setResults([{
+            isbn: book.isbn13,
+            title: book.title,
+            authors: book.authors,
+            coverUrl: book.coverUrl || "",
+          }])
+        } else {
+          const res = await fetch(`/api/books/search?q=${encodeURIComponent(query.trim())}`)
+
+          if (res.status === 401) {
+            setError("Please sign in to search for books")
+            setResults([])
+            return
+          }
+
+          if (!res.ok) {
+            setError("Something went wrong. Please try again.")
+            setResults([])
+            return
+          }
+
+          const { results: candidates } = await res.json() as { results: BookCandidate[] }
+
+          // Filter to only books with ISBN and transform to Book type
+          const books: Book[] = candidates
+            .filter((c) => c.isbn13)
+            .map((c) => ({
+              isbn: c.isbn13!,
+              title: c.title,
+              authors: c.authors,
+              coverUrl: c.coverUrl || "",
+            }))
+
+          setResults(books)
         }
       } catch {
-        // Fall through to create from candidate
+        setError("Network error. Please check your connection and try again.")
+        setResults([])
+      } finally {
+        setIsSearching(false)
       }
-    }
-
-    // If no ISBN or lookup failed, we need to create from candidate data
-    // For now, just show an error - full implementation would POST to create
-    setError('Unable to save book. Try searching by ISBN.');
-    setLoading(false);
-  }
+    },
+    [query, mode]
+  )
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold">Search Books</h1>
-        <p className="text-neutral-600 dark:text-neutral-400">
-          Look up a book by ISBN or search by title/author
+    <div className="mx-auto max-w-6xl px-4 py-8 md:py-12">
+      <div className="mb-10 text-center">
+        <h1 className="font-serif text-3xl font-bold text-foreground md:text-4xl">
+          Find Your Next Read
+        </h1>
+        <p className="mt-3 text-muted-foreground">
+          Search by title, author, or ISBN to discover your predicted rating
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 mb-8">
-        <Card padding="lg">
-          <h2 className="text-lg font-medium mb-4">ISBN Lookup</h2>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter ISBN..."
-              value={isbn}
-              onChange={(e) => setIsbn(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleIsbnLookup()}
-            />
-            <Button onClick={handleIsbnLookup} disabled={loading}>
-              Lookup
-            </Button>
-          </div>
-        </Card>
+      <div className="mx-auto max-w-2xl">
+        <Tabs
+          value={mode}
+          onValueChange={(v) => {
+            setMode(v as "title" | "isbn")
+            setQuery("")
+            setResults([])
+            setHasSearched(false)
+            setError(null)
+          }}
+        >
+          <TabsList className="mb-4 w-full">
+            <TabsTrigger value="title" className="flex-1 gap-2">
+              <Search className="h-4 w-4" />
+              Title / Author
+            </TabsTrigger>
+            <TabsTrigger value="isbn" className="flex-1 gap-2">
+              <Hash className="h-4 w-4" />
+              ISBN
+            </TabsTrigger>
+          </TabsList>
 
-        <Card padding="lg">
-          <h2 className="text-lg font-medium mb-4">Title/Author Search</h2>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Search books..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            />
-            <Button onClick={handleSearch} disabled={loading}>
-              Search
-            </Button>
-          </div>
-        </Card>
-      </div>
-
-      {error && (
-        <Card className="mb-6 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
-          <p className="text-red-600 dark:text-red-400">{error}</p>
-        </Card>
-      )}
-
-      {loading && (
-        <p className="text-center text-neutral-600 dark:text-neutral-400">
-          Loading...
-        </p>
-      )}
-
-      {results.length > 0 && (
-        <div>
-          <h2 className="text-lg font-medium mb-4">
-            Results ({results.length})
-          </h2>
-          <div className="grid gap-4">
-            {results.map((book) => (
-              <BookCard
-                key={book.externalId}
-                book={book}
-                onClick={() => handleSelectBook(book)}
+          <TabsContent value="title">
+            <form onSubmit={handleSearch} className="flex gap-3">
+              <Input
+                placeholder="Search by title or author..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="flex-1"
               />
-            ))}
+              <Button type="submit" disabled={isSearching || !query.trim()}>
+                {isSearching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                <span className="sr-only sm:not-sr-only sm:ml-2">Search</span>
+              </Button>
+            </form>
+          </TabsContent>
+
+          <TabsContent value="isbn">
+            <form onSubmit={handleSearch} className="flex gap-3">
+              <Input
+                placeholder="Enter ISBN-10 or ISBN-13..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="flex-1 font-mono"
+              />
+              <Button type="submit" disabled={isSearching || !query.trim()}>
+                {isSearching ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                <span className="sr-only sm:not-sr-only sm:ml-2">Look Up</span>
+              </Button>
+            </form>
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      {/* Results */}
+      <div className="mt-12">
+        {isSearching && (
+          <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p>Searching books...</p>
           </div>
-        </div>
-      )}
+        )}
+
+        {!isSearching && error && (
+          <div className="flex flex-col items-center gap-3 py-16 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+              <AlertCircle className="h-8 w-8 text-destructive" />
+            </div>
+            <h3 className="font-serif text-lg font-semibold text-foreground">
+              Search Error
+            </h3>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              {error}
+            </p>
+          </div>
+        )}
+
+        {!isSearching && !error && hasSearched && results.length === 0 && (
+          <div className="flex flex-col items-center gap-3 py-16 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+              <BookX className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h3 className="font-serif text-lg font-semibold text-foreground">
+              No books found
+            </h3>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              Try a different search term or check the ISBN format. We support
+              both ISBN-10 and ISBN-13.
+            </p>
+          </div>
+        )}
+
+        {!isSearching && !error && results.length > 0 && (
+          <>
+            <p className="mb-6 text-sm text-muted-foreground">
+              {results.length} {results.length === 1 ? "result" : "results"}{" "}
+              found
+            </p>
+            <div className="grid gap-6 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {results.map((book) => (
+                <BookCard key={book.isbn} book={book} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
-  );
+  )
 }
