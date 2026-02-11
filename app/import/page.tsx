@@ -30,6 +30,15 @@ import { toast } from "sonner"
 
 type Step = "upload" | "mapping" | "preview" | "importing" | "done"
 
+// API response type for CSV upload
+interface ImportPreview {
+  batchId: string
+  filename?: string
+  headers: string[]
+  rows: string[][]
+  totalRows: number
+}
+
 const REQUIRED_FIELDS: { key: keyof ColumnMapping; label: string; required: boolean }[] = [
   { key: "title", label: "Title", required: true },
   { key: "author", label: "Author", required: true },
@@ -43,55 +52,69 @@ export default function ImportPage() {
   const user = session?.user
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [step, setStep] = useState<Step>("upload")
+  const [isUploading, setIsUploading] = useState(false)
+  const [batchId, setBatchId] = useState<string | null>(null)
   const [fileName, setFileName] = useState("")
   const [headers, setHeaders] = useState<string[]>([])
   const [rows, setRows] = useState<string[][]>([])
+  const [totalRows, setTotalRows] = useState(0)
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [importStats, setImportStats] = useState<ImportStats | null>(null)
-  const [importProgress, setImportProgress] = useState(0)
   const [dragActive, setDragActive] = useState(false)
 
-  const parseCSV = useCallback((text: string) => {
-    const lines = text.trim().split("\n")
-    if (lines.length < 2) {
-      toast.error("CSV must have at least a header row and one data row")
+  const handleFile = useCallback(async (file: File) => {
+    if (!file.name.endsWith(".csv")) {
+      toast.error("Please upload a .csv file")
       return
     }
-    const csvHeaders = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""))
-    const csvRows = lines.slice(1).map((line) =>
-      line.split(",").map((cell) => cell.trim().replace(/^"|"$/g, ""))
-    )
-    setHeaders(csvHeaders)
-    setRows(csvRows)
-    setStep("mapping")
 
-    // Auto-map by guessing column names
-    const autoMap: Record<string, string> = {}
-    for (const field of REQUIRED_FIELDS) {
-      const match = csvHeaders.find((h) =>
-        h.toLowerCase().includes(field.key.toLowerCase())
-      )
-      if (match) autoMap[field.key] = match
-    }
-    setMapping(autoMap)
-  }, [])
+    setIsUploading(true)
+    setFileName(file.name)
 
-  const handleFile = useCallback(
-    (file: File) => {
-      if (!file.name.endsWith(".csv")) {
-        toast.error("Please upload a .csv file")
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const res = await fetch("/api/import/csv", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (res.status === 401) {
+        toast.error("Please sign in to import files")
+        setIsUploading(false)
         return
       }
-      setFileName(file.name)
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const text = e.target?.result as string
-        parseCSV(text)
+
+      if (!res.ok) {
+        const { error } = await res.json()
+        toast.error(error || "Failed to upload file")
+        setIsUploading(false)
+        return
       }
-      reader.readAsText(file)
-    },
-    [parseCSV]
-  )
+
+      const data = (await res.json()) as ImportPreview
+      setBatchId(data.batchId)
+      setHeaders(data.headers)
+      setRows(data.rows)
+      setTotalRows(data.totalRows)
+      setStep("mapping")
+
+      // Auto-map by guessing column names
+      const autoMap: Record<string, string> = {}
+      for (const field of REQUIRED_FIELDS) {
+        const match = data.headers.find((h) =>
+          h.toLowerCase().includes(field.key.toLowerCase())
+        )
+        if (match) autoMap[field.key] = match
+      }
+      setMapping(autoMap)
+    } catch {
+      toast.error("Network error. Please try again.")
+    } finally {
+      setIsUploading(false)
+    }
+  }, [])
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -117,34 +140,66 @@ export default function ImportPage() {
     .every((f) => mapping[f.key])
 
   const handleImport = async () => {
-    setStep("importing")
-    const total = rows.length
-
-    for (let i = 0; i <= total; i++) {
-      setImportProgress(Math.round((i / total) * 100))
-      await new Promise((resolve) => setTimeout(resolve, 30))
+    if (!batchId) {
+      toast.error("No import batch found. Please upload a file first.")
+      return
     }
 
-    // Simulate results
-    const errors = Math.floor(Math.random() * 3)
-    const skipped = Math.floor(Math.random() * 5)
-    setImportStats({
-      total,
-      imported: total - errors - skipped,
-      skipped,
-      errors,
-    })
-    setStep("done")
+    setStep("importing")
+
+    try {
+      const columnMap: ColumnMapping = {
+        title: mapping.title,
+        author: mapping.author,
+        rating: mapping.rating,
+        isbn: mapping.isbn,
+        date: mapping.date,
+      }
+
+      const res = await fetch("/api/import/commit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ batchId, columnMap }),
+      })
+
+      if (res.status === 401) {
+        toast.error("Please sign in to import files")
+        setStep("preview")
+        return
+      }
+
+      if (res.status === 404) {
+        toast.error("Import batch not found or already processed")
+        setStep("upload")
+        return
+      }
+
+      if (!res.ok) {
+        const { error } = await res.json()
+        toast.error(error || "Failed to import data")
+        setStep("preview")
+        return
+      }
+
+      const { stats } = (await res.json()) as { success: boolean; stats: ImportStats }
+      setImportStats(stats)
+      setStep("done")
+    } catch {
+      toast.error("Network error. Please try again.")
+      setStep("preview")
+    }
   }
 
   const reset = () => {
     setStep("upload")
+    setIsUploading(false)
+    setBatchId(null)
     setFileName("")
     setHeaders([])
     setRows([])
+    setTotalRows(0)
     setMapping({})
     setImportStats(null)
-    setImportProgress(0)
   }
 
   if (!user) {
@@ -233,36 +288,52 @@ export default function ImportPage() {
               : "border-border bg-card"
           }`}
         >
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-            <Upload className="h-8 w-8 text-primary" />
-          </div>
-          <div>
-            <p className="font-semibold text-foreground">
-              Drop your CSV file here
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              or click to browse your files
-            </p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) handleFile(file)
-            }}
-            className="hidden"
-          />
-          <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            Browse Files
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            Supports .csv files exported from Goodreads, StoryGraph, and more
-          </p>
+          {isUploading ? (
+            <>
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <div>
+                <p className="font-semibold text-foreground">
+                  Uploading {fileName}...
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Please wait while we process your file
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                <Upload className="h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">
+                  Drop your CSV file here
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  or click to browse your files
+                </p>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleFile(file)
+                }}
+                className="hidden"
+              />
+              <Button
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Browse Files
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Supports .csv files exported from Goodreads, StoryGraph, and more
+              </p>
+            </>
+          )}
         </div>
       )}
 
@@ -355,7 +426,7 @@ export default function ImportPage() {
               Preview Your Data
             </h2>
             <p className="text-sm text-muted-foreground">
-              Showing the first {Math.min(5, rows.length)} of {rows.length}{" "}
+              Showing the first {Math.min(5, rows.length)} of {totalRows}{" "}
               rows
             </p>
           </div>
@@ -412,7 +483,7 @@ export default function ImportPage() {
             </Button>
             <Button onClick={handleImport} className="gap-2">
               <Upload className="h-4 w-4" />
-              Import {rows.length} Books
+              Import {totalRows} Books
             </Button>
           </div>
         </div>
@@ -427,13 +498,7 @@ export default function ImportPage() {
               Importing your books...
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              This may take a moment
-            </p>
-          </div>
-          <div className="w-full max-w-xs">
-            <Progress value={importProgress} className="h-2.5" />
-            <p className="mt-2 text-sm tabular-nums text-muted-foreground">
-              {importProgress}%
+              Processing {totalRows} books. This may take a moment.
             </p>
           </div>
         </div>
