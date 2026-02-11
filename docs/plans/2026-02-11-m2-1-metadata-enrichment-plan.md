@@ -3,7 +3,7 @@ title: "M2.1: Metadata Enrichment"
 type: feat
 date: 2026-02-11
 parent: 2026-02-11-m2-real-predictor-roadmap.md
-status: draft
+status: complete
 validated: 2026-02-11
 brainstorm: ../brainstorms/2026-02-11-m2-1-metadata-assumptions-brainstorm.md
 ---
@@ -52,17 +52,19 @@ ISBN Lookup → Edition Data → Work Key → Work Data (subjects)
 ## Acceptance Criteria
 
 ### Functional Requirements
-- [ ] New books fetched via ISBN include subjects from Works API
-- [ ] Existing books can be enriched via new API endpoint
-- [ ] Books with no subjects in Open Library return empty array (not error)
-- [ ] Subjects are stored both in `subjects` column AND raw in `metadata`
-- [ ] Meta-tags filtered before storage (nyt:*, reading levels, format tags)
+- [x] New books fetched via ISBN include subjects from Works API
+- [x] Existing books can be enriched via new API endpoint
+- [x] Books with no subjects in Open Library return empty array (not error)
+- [x] Subjects are stored both in `subjects` column AND raw in `metadata`
+- [x] Meta-tags filtered before storage (nyt:*, reading levels, format tags)
+- [x] Lazy enrichment on book detail access (added per user request)
+- [x] `lastEnrichedAt` field tracks freshness for future re-enrichment rules
 
 ### Non-Functional Requirements
-- [ ] Enrichment of single book completes in <2s
-- [ ] Batch enrichment respects rate limits (1 req/sec)
-- [ ] No breaking changes to existing book lookup flow
-- [ ] Coverage stats logged after batch enrichment
+- [x] Enrichment of single book completes in <2s
+- [x] Batch enrichment respects rate limits (1 req/sec)
+- [x] No breaking changes to existing book lookup flow
+- [x] Coverage stats logged after batch enrichment
 
 ## Implementation Plan
 

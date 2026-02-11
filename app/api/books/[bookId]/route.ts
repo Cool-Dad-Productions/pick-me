@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { needsEnrichment, enrichBook } from '@/lib/books/enrichment';
 
 export async function GET(
   request: Request,
@@ -15,7 +16,7 @@ export async function GET(
 
     const { bookId } = await params;
 
-    const book = await db.book.findUnique({
+    let book = await db.book.findUnique({
       where: { id: bookId },
     });
 
@@ -24,6 +25,26 @@ export async function GET(
         { error: 'Book not found' },
         { status: 404 }
       );
+    }
+
+    // Lazy enrichment: fetch subjects if not already enriched
+    if (needsEnrichment(book)) {
+      console.log(`[BookDetail] Lazy enriching book ${bookId}`);
+      const result = await enrichBook(bookId);
+
+      if (result.success && result.subjectsAdded > 0) {
+        // Refetch the updated book
+        book = await db.book.findUnique({
+          where: { id: bookId },
+        });
+
+        if (!book) {
+          return NextResponse.json(
+            { error: 'Book not found after enrichment' },
+            { status: 404 }
+          );
+        }
+      }
     }
 
     return NextResponse.json({ book });

@@ -29,6 +29,10 @@ interface OpenLibraryBookData {
 
 interface OpenLibraryWorkData {
   authors?: { author: { key: string } }[];
+  subjects?: string[];
+  subject_places?: string[];
+  subject_times?: string[];
+  description?: string | { value: string };
 }
 
 export async function searchBooks(params: {
@@ -116,12 +120,25 @@ export async function lookupByIsbn(isbn: string): Promise<NormalizedBook | null>
 
   // Fetch author names - try edition authors first, then fall back to work authors
   let authorNames: string[] = [];
+  let subjects: string[] = [];
+
   if (data.authors && data.authors.length > 0) {
     authorNames = await fetchAuthorNames(data.authors.map((a) => a.key));
-  } else if (data.works && data.works.length > 0) {
-    // No authors on edition, try to get them from the work
-    console.log('[OpenLibrary] No authors on edition, fetching from work:', data.works[0].key);
-    authorNames = await fetchAuthorsFromWork(data.works[0].key);
+  }
+
+  // Fetch subjects from work
+  if (data.works && data.works.length > 0) {
+    const workKey = data.works[0].key;
+
+    // Fetch authors from work if not on edition
+    if (authorNames.length === 0) {
+      console.log('[OpenLibrary] No authors on edition, fetching from work:', workKey);
+      authorNames = await fetchAuthorsFromWork(workKey);
+    }
+
+    // Fetch subjects from work
+    subjects = await fetchWorkSubjects(workKey);
+    console.log(`[OpenLibrary] Fetched ${subjects.length} subjects from work ${workKey}`);
   }
 
   const isbn13 = data.isbn_13?.[0] || normalizedIsbn;
@@ -137,6 +154,7 @@ export async function lookupByIsbn(isbn: string): Promise<NormalizedBook | null>
     isbn13,
     title,
     authors: authorNames,
+    subjects,
     coverUrl: coverId ? `${COVERS_API}/b/id/${coverId}-M.jpg` : undefined,
     metadata: data,
   };
@@ -182,6 +200,72 @@ async function fetchAuthorsFromWork(workKey: string): Promise<string[]> {
     return [];
   } catch {
     console.warn(`[OpenLibrary] Failed to fetch work ${workKey}`);
+    return [];
+  }
+}
+
+/**
+ * Check if a subject is a meta-tag that doesn't represent actual content.
+ * These are filtered out before storing subjects.
+ */
+function isMetaTag(subject: string): boolean {
+  const lower = subject.toLowerCase();
+  return (
+    lower.startsWith('nyt:') ||
+    lower.startsWith('reading level') ||
+    lower.includes('large print') ||
+    lower.includes('audiobook') ||
+    lower.includes('staff picks') ||
+    lower.includes('bestseller') ||
+    lower.includes('new york times') ||
+    lower.includes('protected daisy') ||
+    lower.includes('accessible book') ||
+    lower.includes('in library') ||
+    lower.includes('overdrive')
+  );
+}
+
+/**
+ * Normalize subjects: lowercase, trim, filter noise, dedupe, limit to 20.
+ */
+function normalizeSubjects(subjects: string[]): string[] {
+  const filtered = subjects
+    .filter((s) => typeof s === 'string' && s.trim().length > 0)
+    .filter((s) => !isMetaTag(s))
+    .map((s) => s.toLowerCase().trim());
+
+  // Dedupe and limit to 20 subjects
+  return [...new Set(filtered)].slice(0, 20);
+}
+
+/**
+ * Fetch subjects from Open Library Works API.
+ * @param workKey - Work key in format "/works/OL123W"
+ * @returns Normalized array of subjects (lowercase, deduped, filtered)
+ */
+export async function fetchWorkSubjects(workKey: string): Promise<string[]> {
+  try {
+    const url = `${OPEN_LIBRARY_API}${workKey}.json`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.warn(`[OpenLibrary] Failed to fetch work ${workKey}: ${response.status}`);
+      return [];
+    }
+
+    const data: OpenLibraryWorkData = await response.json();
+
+    // Combine all subject types
+    const allSubjects = [
+      ...(data.subjects || []),
+      // Optionally include places and times for richer matching
+      // ...(data.subject_places || []),
+      // ...(data.subject_times || []),
+    ];
+
+    return normalizeSubjects(allSubjects);
+  } catch (error) {
+    console.warn(`[OpenLibrary] Error fetching work ${workKey}:`, error);
     return [];
   }
 }

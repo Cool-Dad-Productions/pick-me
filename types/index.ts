@@ -10,6 +10,7 @@ export interface NormalizedBook {
   isbn13?: string;
   title: string;
   authors: string[];
+  subjects: string[];
   coverUrl?: string;
   metadata?: unknown;
 }

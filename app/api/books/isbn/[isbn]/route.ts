@@ -45,14 +45,16 @@ export async function GET(
       );
     }
 
-    // Create book record
+    // Create book record with subjects (enriched on creation)
     book = await db.book.create({
       data: {
         isbn13: bookData.isbn13,
         title: bookData.title,
         authors: bookData.authors,
+        subjects: bookData.subjects,
         coverUrl: bookData.coverUrl,
         metadata: bookData.metadata as Prisma.InputJsonValue,
+        lastEnrichedAt: bookData.subjects.length > 0 ? new Date() : null,
       },
     });
 
