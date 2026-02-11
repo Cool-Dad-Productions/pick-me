@@ -7,9 +7,25 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { BookCard } from "@/components/book-card"
-import { searchBooks, getBookByIsbn } from "@/lib/mock-data"
 import type { Book } from "@/lib/types"
-import { Search, Hash, Loader2, BookX } from "lucide-react"
+import { Search, Hash, Loader2, BookX, AlertCircle } from "lucide-react"
+
+// API response types
+interface BookCandidate {
+  externalId: string
+  title: string
+  authors: string[]
+  isbn13?: string
+  coverUrl?: string
+}
+
+interface ApiBook {
+  id: string
+  isbn13: string
+  title: string
+  authors: string[]
+  coverUrl?: string
+}
 
 export default function SearchPage() {
   const [mode, setMode] = useState<"title" | "isbn">("title")
@@ -17,6 +33,7 @@ export default function SearchPage() {
   const [results, setResults] = useState<Book[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSearch = useCallback(
     async (e: React.FormEvent) => {
@@ -25,18 +42,77 @@ export default function SearchPage() {
 
       setIsSearching(true)
       setHasSearched(true)
+      setError(null)
 
-      // Simulate network delay
-      await new Promise((resolve) => setTimeout(resolve, 400))
+      try {
+        if (mode === "isbn") {
+          const res = await fetch(`/api/books/isbn/${encodeURIComponent(query.trim())}`)
 
-      if (mode === "isbn") {
-        const book = getBookByIsbn(query.trim())
-        setResults(book ? [book] : [])
-      } else {
-        setResults(searchBooks(query.trim()))
+          if (res.status === 401) {
+            setError("Please sign in to search for books")
+            setResults([])
+            return
+          }
+
+          if (res.status === 400) {
+            setError("Invalid ISBN format. Please check and try again.")
+            setResults([])
+            return
+          }
+
+          if (res.status === 404) {
+            setResults([])
+            return
+          }
+
+          if (!res.ok) {
+            setError("Something went wrong. Please try again.")
+            setResults([])
+            return
+          }
+
+          const { book } = await res.json() as { book: ApiBook }
+          setResults([{
+            isbn: book.isbn13,
+            title: book.title,
+            authors: book.authors,
+            coverUrl: book.coverUrl || "",
+          }])
+        } else {
+          const res = await fetch(`/api/books/search?q=${encodeURIComponent(query.trim())}`)
+
+          if (res.status === 401) {
+            setError("Please sign in to search for books")
+            setResults([])
+            return
+          }
+
+          if (!res.ok) {
+            setError("Something went wrong. Please try again.")
+            setResults([])
+            return
+          }
+
+          const { results: candidates } = await res.json() as { results: BookCandidate[] }
+
+          // Filter to only books with ISBN and transform to Book type
+          const books: Book[] = candidates
+            .filter((c) => c.isbn13)
+            .map((c) => ({
+              isbn: c.isbn13!,
+              title: c.title,
+              authors: c.authors,
+              coverUrl: c.coverUrl || "",
+            }))
+
+          setResults(books)
+        }
+      } catch {
+        setError("Network error. Please check your connection and try again.")
+        setResults([])
+      } finally {
+        setIsSearching(false)
       }
-
-      setIsSearching(false)
     },
     [query, mode]
   )
@@ -60,6 +136,7 @@ export default function SearchPage() {
             setQuery("")
             setResults([])
             setHasSearched(false)
+            setError(null)
           }}
         >
           <TabsList className="mb-4 w-full">
@@ -122,7 +199,21 @@ export default function SearchPage() {
           </div>
         )}
 
-        {!isSearching && hasSearched && results.length === 0 && (
+        {!isSearching && error && (
+          <div className="flex flex-col items-center gap-3 py-16 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+              <AlertCircle className="h-8 w-8 text-destructive" />
+            </div>
+            <h3 className="font-serif text-lg font-semibold text-foreground">
+              Search Error
+            </h3>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              {error}
+            </p>
+          </div>
+        )}
+
+        {!isSearching && !error && hasSearched && results.length === 0 && (
           <div className="flex flex-col items-center gap-3 py-16 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
               <BookX className="h-8 w-8 text-muted-foreground" />
@@ -137,7 +228,7 @@ export default function SearchPage() {
           </div>
         )}
 
-        {!isSearching && results.length > 0 && (
+        {!isSearching && !error && results.length > 0 && (
           <>
             <p className="mb-6 text-sm text-muted-foreground">
               {results.length} {results.length === 1 ? "result" : "results"}{" "}
