@@ -3,7 +3,7 @@ title: "M2.2: TF-IDF Engine"
 type: feat
 date: 2026-02-11
 parent: 2026-02-11-m2-real-predictor-roadmap.md
-status: draft
+status: complete
 ---
 
 # M2.2: TF-IDF Engine
@@ -73,17 +73,17 @@ Book A                          Book B
 ## Acceptance Criteria
 
 ### Functional Requirements
-- [ ] Tokenizer splits text into normalized terms
-- [ ] Stop words (the, a, and, etc.) are removed
-- [ ] TF-IDF vectors computed for book corpus
-- [ ] Cosine similarity returns value 0.0-1.0
-- [ ] Similar books return high similarity (>0.7)
+- [x] Tokenizer splits text into normalized terms
+- [x] Stop words (the, a, and, etc.) are removed
+- [x] TF-IDF vectors computed for book corpus
+- [x] Cosine similarity returns value 0.0-1.0
+- [x] Similar books return high similarity (>0.7)
 
 ### Non-Functional Requirements
-- [ ] Vectorize 500 books in <100ms
-- [ ] Single similarity calculation in <1ms
-- [ ] Zero external NLP dependencies
-- [ ] 100% unit test coverage for core functions
+- [x] Vectorize 500 books in <100ms
+- [x] Single similarity calculation in <1ms
+- [x] Zero external NLP dependencies
+- [x] 100% unit test coverage for core functions
 
 ## Implementation Plan
 

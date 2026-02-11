@@ -75,10 +75,10 @@ Transform the placeholder prediction endpoint into a working TF-IDF-based recomm
 - Optional: basic stemming (Porter stemmer) for better matching
 
 **Acceptance Criteria:**
-- [ ] Can tokenize book text into normalized terms
-- [ ] Can compute TF-IDF vectors for a set of books
-- [ ] Can calculate cosine similarity between two book vectors
-- [ ] Unit tests cover edge cases (empty subjects, special characters)
+- [x] Can tokenize book text into normalized terms
+- [x] Can compute TF-IDF vectors for a set of books
+- [x] Can calculate cosine similarity between two book vectors
+- [x] Unit tests cover edge cases (empty subjects, special characters)
 
 ---
 
