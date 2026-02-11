@@ -4,6 +4,8 @@ type: feat
 date: 2026-02-11
 parent: 2026-02-11-m2-real-predictor-roadmap.md
 status: draft
+validated: 2026-02-11
+brainstorm: ../brainstorms/2026-02-11-m2-1-metadata-assumptions-brainstorm.md
 ---
 
 # M2.1: Metadata Enrichment
@@ -54,11 +56,13 @@ ISBN Lookup → Edition Data → Work Key → Work Data (subjects)
 - [ ] Existing books can be enriched via new API endpoint
 - [ ] Books with no subjects in Open Library return empty array (not error)
 - [ ] Subjects are stored both in `subjects` column AND raw in `metadata`
+- [ ] Meta-tags filtered before storage (nyt:*, reading levels, format tags)
 
 ### Non-Functional Requirements
 - [ ] Enrichment of single book completes in <2s
 - [ ] Batch enrichment respects rate limits (1 req/sec)
 - [ ] No breaking changes to existing book lookup flow
+- [ ] Coverage stats logged after batch enrichment
 
 ## Implementation Plan
 
@@ -122,9 +126,23 @@ export async function fetchWorkSubjects(workKey: string): Promise<string[]> {
     // Optionally include places/times for richer matching
   ];
 
-  // Normalize: lowercase, trim, limit to 20 subjects
+  // Filter meta-tags that don't represent content (validated in brainstorm)
+  const isMetaTag = (s: string): boolean => {
+    const lower = s.toLowerCase();
+    return (
+      lower.startsWith('nyt:') ||
+      lower.startsWith('reading level') ||
+      lower.includes('large print') ||
+      lower.includes('audiobook') ||
+      lower.includes('staff picks') ||
+      lower.includes('bestseller')
+    );
+  };
+
+  // Normalize: lowercase, trim, filter noise, limit to 20 subjects
   return [...new Set(
     subjects
+      .filter(s => !isMetaTag(s))
       .slice(0, 20)
       .map(s => s.toLowerCase().trim())
   )];
@@ -382,10 +400,41 @@ describe('POST /api/books/enrich', () => {
 | Risk | Mitigation |
 |------|------------|
 | Open Library rate limiting | Add 1s delay between requests in batch mode |
-| Books with no subjects in OL | Return empty array, algorithm handles gracefully |
+| Books with no subjects in OL | Return empty array, flag as low-confidence in predictions |
 | Work key missing in metadata | Log warning, skip enrichment for that book |
+| Noisy meta-tags in subjects | Filter `nyt:*`, reading levels, format tags before storing |
+
+## Confidence Scoring (Validated)
+
+Subject count affects prediction confidence:
+
+| Subject Count | Confidence Level |
+|---------------|------------------|
+| 10+ subjects | High - reliable similarity matching |
+| 3-9 subjects | Medium - reasonable matching |
+| 0-2 subjects | Low - flag to user, fallback to title/author only |
+
+See [assumption validation brainstorm](../brainstorms/2026-02-11-m2-1-metadata-assumptions-brainstorm.md) for details.
+
+## Coverage Monitoring
+
+Log enrichment stats to validate assumptions in production:
+
+```typescript
+// After batch enrichment, log coverage stats
+const stats = {
+  total: results.length,
+  withSubjects: results.filter(r => r.subjectsAdded > 0).length,
+  highCoverage: results.filter(r => r.subjectsAdded >= 10).length,
+  noCoverage: results.filter(r => r.subjectsAdded === 0).length,
+};
+console.log('[Enrichment] Coverage stats:', stats);
+```
+
+**Target:** >70% of books should have 3+ subjects. If not, revisit fallback strategy.
 
 ## References
 
 - [Open Library Works API](https://openlibrary.org/dev/docs/api/books)
+- [Assumption Validation](../brainstorms/2026-02-11-m2-1-metadata-assumptions-brainstorm.md)
 - Current Open Library wrapper: [lib/books/openLibrary.ts](lib/books/openLibrary.ts)

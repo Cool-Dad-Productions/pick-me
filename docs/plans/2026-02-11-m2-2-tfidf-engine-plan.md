@@ -25,6 +25,8 @@ Implement a self-contained TF-IDF engine in TypeScript with:
 
 No external NLP libraries required - pure TypeScript for simplicity and control.
 
+Modularize engine so the algorithm can be replaced or augmented in the future.
+
 ## Technical Approach
 
 ### TF-IDF Explained
