@@ -47,9 +47,9 @@ Transform the placeholder prediction endpoint into a working TF-IDF-based recomm
 - New: `lib/books/enrichment.ts` - Enrichment orchestration
 
 **Acceptance Criteria:**
-- [ ] Books have subjects populated from Open Library works API
-- [ ] Existing imported books can be enriched on-demand
-- [ ] New books fetched via ISBN/search include subjects
+- [x] Books have subjects populated from Open Library works API
+- [x] Existing imported books can be enriched on-demand
+- [x] New books fetched via ISBN/search include subjects
 
 ---
 
