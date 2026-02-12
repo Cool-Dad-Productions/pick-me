@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { X, Camera, AlertCircle, CameraOff } from "lucide-react";
 import {
@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/components/ui/use-mobile";
 import { BarcodeScanner, type ScannerState, type CameraError } from "@/components/barcode-scanner";
-import { normalizeIsbn } from "@/lib/validations";
+import { normalizeIsbn, validateIsbn13Checksum, isBookIsbn } from "@/lib/validations";
 import { vibrateOnSuccess } from "@/lib/haptics";
 
 interface ScannerOverlayProps {
@@ -20,6 +20,9 @@ interface ScannerOverlayProps {
   onOpenChange: (open: boolean) => void;
   onManualEntry?: () => void;
 }
+
+// Multi-sample verification: require 2 matching consecutive reads within 500ms
+const MULTI_SAMPLE_TIMEOUT_MS = 500;
 
 export function ScannerOverlay({
   open,
@@ -32,25 +35,54 @@ export function ScannerOverlay({
   const [scanSuccess, setScanSuccess] = useState(false);
   const [invalidScanMessage, setInvalidScanMessage] = useState<string | null>(null);
 
+  // Track last scan for multi-sample verification
+  const lastScanRef = useRef<{ isbn: string; timestamp: number } | null>(null);
+
   const handleScan = useCallback(
     (scannedCode: string) => {
       const normalizedIsbn = normalizeIsbn(scannedCode);
 
+      // Reject if not a valid ISBN length
       if (!normalizedIsbn) {
         setInvalidScanMessage("Not a book ISBN. Keep scanning.");
         setTimeout(() => setInvalidScanMessage(null), 2000);
         return;
       }
 
-      // Success feedback
-      vibrateOnSuccess();
-      setScanSuccess(true);
+      // Validate it's a book ISBN (978 or 979 prefix)
+      if (!isBookIsbn(normalizedIsbn)) {
+        setInvalidScanMessage("Not a book barcode. Keep scanning.");
+        setTimeout(() => setInvalidScanMessage(null), 2000);
+        return;
+      }
 
-      // Navigate after brief visual feedback
-      setTimeout(() => {
-        onOpenChange(false);
-        router.push(`/book/${normalizedIsbn}`);
-      }, 300);
+      // Validate checksum to catch misreads
+      if (!validateIsbn13Checksum(normalizedIsbn)) {
+        // Don't show error - this is likely a misread, just keep scanning
+        return;
+      }
+
+      // Multi-sample verification: require 2 matching reads
+      const now = Date.now();
+      const lastScan = lastScanRef.current;
+
+      if (lastScan && lastScan.isbn === normalizedIsbn && now - lastScan.timestamp < MULTI_SAMPLE_TIMEOUT_MS) {
+        // Confirmed match - two consecutive reads of the same ISBN
+        lastScanRef.current = null;
+
+        // Success feedback
+        vibrateOnSuccess();
+        setScanSuccess(true);
+
+        // Navigate after brief visual feedback
+        setTimeout(() => {
+          onOpenChange(false);
+          router.push(`/book/${normalizedIsbn}`);
+        }, 300);
+      } else {
+        // First read or different ISBN - store for verification
+        lastScanRef.current = { isbn: normalizedIsbn, timestamp: now };
+      }
     },
     [onOpenChange, router]
   );
@@ -67,6 +99,7 @@ export function ScannerOverlay({
       setCameraError(null);
       setScanSuccess(false);
       setInvalidScanMessage(null);
+      lastScanRef.current = null;
     }, 300);
   }, [onOpenChange]);
 
@@ -134,9 +167,9 @@ export function ScannerOverlay({
                 {/* Darkened corners */}
                 <div className="absolute inset-0 bg-black/50" />
 
-                {/* Clear scanning area */}
+                {/* Clear scanning area - matches qrbox: 350x130 */}
                 <div
-                  className={`relative z-10 h-[120px] w-[300px] rounded-lg border-2 transition-colors duration-200 ${
+                  className={`relative z-10 h-[130px] w-[350px] rounded-lg border-2 transition-colors duration-200 ${
                     scanSuccess
                       ? "border-green-500 bg-green-500/10"
                       : invalidScanMessage

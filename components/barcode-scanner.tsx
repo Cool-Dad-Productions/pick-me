@@ -54,6 +54,7 @@ export function BarcodeScanner({
           formatsToSupport: [
             Html5QrcodeSupportedFormats.EAN_13,
             Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_A,
           ],
           verbose: false,
         });
@@ -62,10 +63,15 @@ export function BarcodeScanner({
         await scanner.start(
           { facingMode: "environment" },
           {
-            fps: 10,
-            qrbox: { width: 280, height: 100 },
+            fps: 15,
+            qrbox: { width: 350, height: 130 },
             aspectRatio: 1.777778,
             disableFlip: true,
+            videoConstraints: {
+              facingMode: "environment",
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
           },
           handleScanSuccess,
           // Ignore scan failures (no barcode in frame)
