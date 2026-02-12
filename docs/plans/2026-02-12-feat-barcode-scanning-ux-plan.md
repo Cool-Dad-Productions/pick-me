@@ -98,15 +98,15 @@ Add a camera-based barcode scanner accessible from the search page's ISBN tab. O
 #### Phase 1: Core Scanner Component
 
 **Tasks:**
-- [ ] Install html5-qrcode: `pnpm add html5-qrcode`
-- [ ] Create `components/barcode-scanner.tsx` with:
+- [x] Install html5-qrcode: `pnpm add html5-qrcode`
+- [x] Create `components/barcode-scanner.tsx` with:
   - Dynamic import of html5-qrcode (ssr: false)
   - Camera initialization with `facingMode: "environment"`
   - EAN-13 format support for ISBN-13 barcodes
   - Proper cleanup on unmount (stop + clear)
   - Callback props: `onScan(isbn)`, `onError(error)`
-- [ ] Create `lib/haptics.ts` with `vibrateOnSuccess()` function
-- [ ] Create `hooks/use-camera-permission.ts` to check permission state
+- [x] Create `lib/haptics.ts` with `vibrateOnSuccess()` function
+- [x] Create `hooks/use-camera-permission.ts` to check permission state
 
 **Success criteria:**
 - Scanner initializes camera on render
@@ -117,18 +117,19 @@ Add a camera-based barcode scanner accessible from the search page's ISBN tab. O
 #### Phase 2: Scanner Overlay UI
 
 **Tasks:**
-- [ ] Create `components/scanner-overlay.tsx` with:
+- [x] Create `components/scanner-overlay.tsx` with:
   - Full-screen Drawer (vaul) from bottom
   - Close button header
   - Torch toggle button (if supported)
   - Rectangular viewfinder overlay (300x100px scan region)
   - "Point camera at barcode" instruction
   - "Enter ISBN manually" fallback link
-- [ ] Create `components/camera-permission.tsx` with:
+- [x] Create `components/camera-permission.tsx` with:
   - Pre-permission explanation state
   - Permission denied state with retry button
   - Permission blocked state with platform-specific instructions
-- [ ] Style viewfinder with semi-transparent dark overlay
+  (Note: Consolidated into scanner-overlay.tsx as CameraErrorState component)
+- [x] Style viewfinder with semi-transparent dark overlay
 - [ ] Add scan line animation (optional)
 
 **Success criteria:**
@@ -140,15 +141,16 @@ Add a camera-based barcode scanner accessible from the search page's ISBN tab. O
 #### Phase 3: Search Page Integration
 
 **Tasks:**
-- [ ] Create `components/scan-button.tsx`:
+- [x] Create `components/scan-button.tsx`:
   - Camera icon button
   - Only renders on mobile (`useIsMobile()` hook)
   - Opens scanner overlay on tap
-- [ ] Modify `app/search/page.tsx`:
+  (Note: Consolidated into scanner-overlay.tsx as ScanButton export)
+- [x] Modify `app/search/page.tsx`:
   - Import ScanButton component
   - Add to ISBN tab (near ISBN input field)
   - Handle scanner results: validate with `normalizeIsbn()`, navigate to `/book/[isbn]`
-- [ ] Handle invalid barcode scans (non-ISBN):
+- [x] Handle invalid barcode scans (non-ISBN):
   - Show inline error "Not a book ISBN"
   - Continue scanning
 
@@ -161,12 +163,12 @@ Add a camera-based barcode scanner accessible from the search page's ISBN tab. O
 #### Phase 4: Polish & Edge Cases
 
 **Tasks:**
-- [ ] Add success feedback:
+- [x] Add success feedback:
   - Haptic: `navigator.vibrate(100)`
   - Visual: Viewfinder border turns green for 200ms
 - [ ] Add scanning hint after 30 seconds of no detection
-- [ ] Implement debounce to prevent multiple rapid navigations
-- [ ] Handle all camera errors gracefully:
+- [x] Implement debounce to prevent multiple rapid navigations
+- [x] Handle all camera errors gracefully:
   - NotAllowedError → Permission UI
   - NotFoundError → "No camera" message
   - NotReadableError → "Camera in use" message
