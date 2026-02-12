@@ -26,6 +26,28 @@ export const isbnSchema = z
   .string()
   .regex(/^(?:\d{10}|\d{13})$/, 'ISBN must be 10 or 13 digits');
 
+/**
+ * Validates ISBN-13 checksum using the standard algorithm.
+ * The check digit (last digit) should make the weighted sum divisible by 10.
+ */
+export function validateIsbn13Checksum(isbn: string): boolean {
+  if (isbn.length !== 13 || !/^\d{13}$/.test(isbn)) return false;
+
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(isbn[i]) * (i % 2 === 0 ? 1 : 3);
+  }
+  const expectedCheckDigit = (10 - (sum % 10)) % 10;
+  return parseInt(isbn[12]) === expectedCheckDigit;
+}
+
+/**
+ * Validates that an EAN-13 barcode is a book ISBN (starts with 978 or 979).
+ */
+export function isBookIsbn(isbn: string): boolean {
+  return isbn.startsWith('978') || isbn.startsWith('979');
+}
+
 export function normalizeIsbn(isbn: string): string | null {
   const digits = isbn.replace(/[-\s]/g, '');
 
