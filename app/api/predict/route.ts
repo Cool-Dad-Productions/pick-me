@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { predictSchema } from '@/lib/validations';
+import { predictRating, type BookDocument, type RatedBook } from '@/lib/prediction';
 import type { PredictionResult } from '@/types';
 
 export async function POST(request: Request) {
@@ -79,15 +80,77 @@ export async function POST(request: Request) {
       return NextResponse.json(prediction);
     }
 
-    // TODO: Implement actual prediction algorithm in M2
-    // For now, return a stub response
+    // Fetch target book with full metadata
+    const targetBook: BookDocument = {
+      id: book.id,
+      title: book.title,
+      authors: book.authors,
+      subjects: book.subjects,
+    };
+
+    // Fetch user's rated books with ratings and metadata
+    const userRatings = await db.userRating.findMany({
+      where: { userId: session.user.id },
+      include: {
+        book: {
+          select: {
+            id: true,
+            title: true,
+            authors: true,
+            subjects: true,
+          },
+        },
+      },
+    });
+
+    const ratedBooks: RatedBook[] = userRatings.map(ur => ({
+      id: ur.book.id,
+      title: ur.book.title,
+      authors: ur.book.authors,
+      subjects: ur.book.subjects,
+      rating: ur.rating,
+    }));
+
+    // Run prediction algorithm
+    const predictionResult = predictRating({ targetBook, ratedBooks });
+
+    // Build response based on prediction result
+    if (predictionResult.reason === 'no_similar_books') {
+      const prediction: PredictionResult = {
+        predictedRating: null,
+        confidence: null,
+        rationale: [
+          {
+            type: 'no_similar_books',
+            message:
+              'Could not find similar books in your library to make a prediction.',
+          },
+        ],
+      };
+      return NextResponse.json(prediction);
+    }
+
+    // Build rationale with similar books
     const prediction: PredictionResult = {
-      predictedRating: null,
-      confidence: null,
+      predictedRating: predictionResult.predictedRating,
+      confidence: predictionResult.confidence,
       rationale: [
         {
-          type: 'not_implemented',
-          message: 'Prediction algorithm not yet implemented. Coming in M2.',
+          type: predictionResult.reason === 'low_similarity' ? 'low_confidence' : 'similar_books',
+          message:
+            predictionResult.reason === 'low_similarity'
+              ? 'Prediction based on loosely similar books - take with a grain of salt.'
+              : 'Prediction based on similar books you have rated.',
+          data: {
+            similarBooks: predictionResult.similarBooks.map(sb => ({
+              id: sb.id,
+              title: sb.title,
+              authors: sb.authors,
+              yourRating: sb.rating,
+              similarityPercent: Math.round(sb.similarity * 100),
+              matchingTerms: sb.matchingTerms,
+            })),
+          },
         },
       ],
     };

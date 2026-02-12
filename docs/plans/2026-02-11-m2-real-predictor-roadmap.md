@@ -109,10 +109,10 @@ Transform the placeholder prediction endpoint into a working TF-IDF-based recomm
 - New: `lib/prediction/predictor.ts` - Prediction orchestration
 
 **Acceptance Criteria:**
-- [ ] Prediction returns real rating (1.0-5.0 in 0.5 increments)
-- [ ] Rationale includes top 3 similar books with similarity scores
-- [ ] Handles edge cases: no similar books, all low similarity
-- [ ] Performance: <500ms for typical user library
+- [x] Prediction returns real rating (1.0-5.0 in 0.5 increments)
+- [x] Rationale includes top 3 similar books with similarity scores
+- [x] Handles edge cases: no similar books, all low similarity
+- [x] Performance: <500ms for typical user library
 
 ---
 
