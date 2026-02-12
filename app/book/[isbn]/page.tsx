@@ -5,18 +5,15 @@ import Image from "next/image"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
 import type { PredictionResult } from "@/types"
-import { StarRating } from "@/components/star-rating"
+import { PredictionDisplay } from "@/components/prediction-display"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import {
   ArrowLeft,
   Sparkles,
   Loader2,
   BookX,
-  CheckCircle2,
   AlertCircle,
-  Info,
 } from "lucide-react"
 
 // API book type
@@ -174,18 +171,6 @@ export default function BookDetailPage({
     )
   }
 
-  // Check prediction state
-  const hasRating = prediction?.predictedRating !== null
-  const insufficientData = prediction?.rationale.some(
-    (r) => r.type === "insufficient_data"
-  )
-  const notImplemented = prediction?.rationale.some(
-    (r) => r.type === "not_implemented"
-  )
-  const existingRating = prediction?.rationale.some(
-    (r) => r.type === "existing_rating"
-  )
-
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 md:py-12">
       <Button variant="ghost" size="sm" asChild className="mb-8">
@@ -257,113 +242,8 @@ export default function BookDetailPage({
         </div>
       </div>
 
-      {/* Prediction Results - with actual rating */}
-      {prediction && hasRating && (
-        <div className="mt-12 rounded-xl border border-primary/20 bg-card p-6 shadow-sm md:p-8">
-          <div className="mb-6 flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-primary" />
-            <h2 className="font-serif text-xl font-semibold text-foreground">
-              {existingRating ? "Your Rating" : "Your Predicted Rating"}
-            </h2>
-          </div>
-
-          <div className="flex flex-col gap-8 md:flex-row md:items-start md:gap-12">
-            {/* Rating Display */}
-            <div className="flex flex-col items-center gap-2 md:items-start">
-              <div className="text-5xl font-bold tabular-nums text-foreground">
-                {prediction.predictedRating!.toFixed(1)}
-              </div>
-              <StarRating rating={prediction.predictedRating!} size="lg" />
-              <span className="text-sm text-muted-foreground">out of 5</span>
-            </div>
-
-            {/* Confidence + Rationale */}
-            <div className="flex-1">
-              {/* Confidence Bar */}
-              {prediction.confidence !== null && (
-                <div className="mb-6">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">
-                      Confidence
-                    </span>
-                    <span className="text-sm font-semibold tabular-nums text-primary">
-                      {Math.round(prediction.confidence * 100)}%
-                    </span>
-                  </div>
-                  <Progress
-                    value={prediction.confidence * 100}
-                    className="h-2.5"
-                  />
-                </div>
-              )}
-
-              {/* Rationale */}
-              {prediction.rationale.length > 0 && (
-                <div>
-                  <h3 className="mb-3 text-sm font-medium text-foreground">
-                    {existingRating ? "Note" : "Why this prediction?"}
-                  </h3>
-                  <ul className="flex flex-col gap-2.5">
-                    {prediction.rationale.map((item, i) => (
-                      <li key={i} className="flex gap-2.5 text-sm">
-                        <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-                          {i + 1}
-                        </span>
-                        <span className="leading-relaxed text-muted-foreground">
-                          {item.message || item.type}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Insufficient Data Warning */}
-      {prediction && insufficientData && (
-        <div className="mt-12 rounded-xl border border-warning/30 bg-warning/5 p-6 md:p-8">
-          <div className="flex gap-3">
-            <AlertCircle className="h-5 w-5 flex-shrink-0 text-warning" />
-            <div>
-              <h3 className="font-serif text-lg font-semibold text-foreground">
-                Insufficient Data
-              </h3>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                {prediction.rationale.find((r) => r.type === "insufficient_data")
-                  ?.message ||
-                  "We need more reading history to make an accurate prediction."}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Button size="sm" variant="outline" asChild>
-                  <Link href="/import">Import CSV</Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Not Implemented Info */}
-      {prediction && notImplemented && (
-        <div className="mt-12 rounded-xl border border-border bg-muted/30 p-6 md:p-8">
-          <div className="flex gap-3">
-            <Info className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
-            <div>
-              <h3 className="font-serif text-lg font-semibold text-foreground">
-                Coming Soon
-              </h3>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                {prediction.rationale.find((r) => r.type === "not_implemented")
-                  ?.message ||
-                  "The prediction algorithm is still being developed."}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Prediction Results */}
+      {prediction && <PredictionDisplay prediction={prediction} className="mt-12" />}
     </div>
   )
 }
