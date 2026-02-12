@@ -1,12 +1,11 @@
 "use client"
 
-import React from "react"
-
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef, type FormEvent } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { BookCard } from "@/components/book-card"
+import { ScanButton, ScannerOverlay } from "@/components/scanner-overlay"
 import type { Book } from "@/lib/types"
 import { Search, Hash, Loader2, BookX, AlertCircle } from "lucide-react"
 
@@ -34,9 +33,12 @@ export default function SearchPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [scannerOpen, setScannerOpen] = useState(false)
+
+  const isbnInputRef = useRef<HTMLInputElement>(null)
 
   const handleSearch = useCallback(
-    async (e: React.FormEvent) => {
+    async (e: FormEvent) => {
       e.preventDefault()
       if (!query.trim()) return
 
@@ -172,11 +174,13 @@ export default function SearchPage() {
           <TabsContent value="isbn">
             <form onSubmit={handleSearch} className="flex gap-3">
               <Input
+                ref={isbnInputRef}
                 placeholder="Enter ISBN-10 or ISBN-13..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="flex-1 font-mono"
               />
+              <ScanButton onClick={() => setScannerOpen(true)} />
               <Button type="submit" disabled={isSearching || !query.trim()}>
                 {isSearching ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -242,6 +246,16 @@ export default function SearchPage() {
           </>
         )}
       </div>
+
+      {/* Barcode Scanner Overlay */}
+      <ScannerOverlay
+        open={scannerOpen}
+        onOpenChange={setScannerOpen}
+        onManualEntry={() => {
+          // Focus the ISBN input when user chooses manual entry
+          isbnInputRef.current?.focus()
+        }}
+      />
     </div>
   )
 }
