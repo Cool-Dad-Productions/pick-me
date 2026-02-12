@@ -151,10 +151,10 @@ Transform the placeholder prediction endpoint into a working TF-IDF-based recomm
 ```
 
 **Acceptance Criteria:**
-- [ ] Similar books displayed with ratings and match percentage
-- [ ] Matching subjects shown for transparency
-- [ ] Graceful fallback when confidence is low
-- [ ] Mobile-responsive layout
+- [x] Similar books displayed with ratings and match percentage
+- [x] Matching subjects shown for transparency
+- [x] Graceful fallback when confidence is low
+- [x] Mobile-responsive layout
 
 ---
 
