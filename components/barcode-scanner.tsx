@@ -116,10 +116,18 @@ export function BarcodeScanner({
   }, [handleScanSuccess, onError, onStateChange]);
 
   return (
-    <div
-      id="barcode-scanner-container"
-      ref={containerRef}
-      className="h-full w-full"
-    />
+    <>
+      {/* Hide html5-qrcode's built-in viewfinder - we use our own custom overlay */}
+      <style>{`
+        #barcode-scanner-container #qr-shaded-region {
+          display: none !important;
+        }
+      `}</style>
+      <div
+        id="barcode-scanner-container"
+        ref={containerRef}
+        className="h-full w-full"
+      />
+    </>
   );
 }
