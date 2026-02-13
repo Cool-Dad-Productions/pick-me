@@ -260,12 +260,12 @@ Add "My Ratings" link to header navigation:
 - [x] User can click stars to rate a book 1-5 in 0.5 increments
 - [x] Rating persists to database via API
 - [x] User can update an existing rating
-- [ ] User can delete a rating (with confirmation)
+- [x] User can delete a rating (with confirmation)
 - [x] Book detail page shows existing rating with date
-- [ ] Ratings list page displays all user ratings
-- [ ] Ratings list is paginated and sortable
-- [ ] Header includes "My Ratings" navigation link
-- [ ] Prediction endpoint returns existing rating when book is rated
+- [x] Ratings list page displays all user ratings
+- [x] Ratings list is paginated and sortable
+- [x] Header includes "My Ratings" navigation link
+- [x] Prediction endpoint returns existing rating when book is rated
 
 ### Non-Functional Requirements
 
@@ -279,7 +279,7 @@ Add "My Ratings" link to header navigation:
 
 - [x] All new API routes have authentication checks
 - [x] Rating validation prevents invalid values
-- [ ] No N+1 queries in ratings list
+- [x] No N+1 queries in ratings list
 - [x] TypeScript strict mode passes
 - [x] ESLint passes
 

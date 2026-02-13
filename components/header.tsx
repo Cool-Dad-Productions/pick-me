@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { BookOpen, Search, Upload, LogOut, Menu, X } from "lucide-react"
+import { BookOpen, Search, Upload, Star, LogOut, Menu, X } from "lucide-react"
 import { useState } from "react"
 
 export function Header() {
@@ -32,12 +32,20 @@ export function Header() {
             </Link>
           </Button>
           {user && (
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/import" className="gap-2">
-                <Upload className="h-4 w-4" />
-                Import
-              </Link>
-            </Button>
+            <>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/import" className="gap-2">
+                  <Upload className="h-4 w-4" />
+                  Import
+                </Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/ratings" className="gap-2">
+                  <Star className="h-4 w-4" />
+                  My Ratings
+                </Link>
+              </Button>
+            </>
           )}
         </nav>
 
@@ -92,18 +100,32 @@ export function Header() {
               </Link>
             </Button>
             {user && (
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="justify-start"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <Link href="/import" className="gap-2">
-                  <Upload className="h-4 w-4" />
-                  Import
-                </Link>
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className="justify-start"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Link href="/import" className="gap-2">
+                    <Upload className="h-4 w-4" />
+                    Import
+                  </Link>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className="justify-start"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Link href="/ratings" className="gap-2">
+                    <Star className="h-4 w-4" />
+                    My Ratings
+                  </Link>
+                </Button>
+              </>
             )}
           </nav>
           <div className="mt-3 border-t border-border pt-3">
