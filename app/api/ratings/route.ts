@@ -11,9 +11,15 @@ const createRatingSchema = z.object({
   rating: ratingSchema,
 });
 
+// Helper to handle null from searchParams.get() - convert to undefined so defaults work
+const coercePositiveInt = z.preprocess(
+  (val) => (val === null || val === '' ? undefined : val),
+  z.coerce.number().int().positive().optional()
+);
+
 const listRatingsSchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(20),
+  page: coercePositiveInt.default(1),
+  limit: coercePositiveInt.pipe(z.number().max(100)).default(20),
   sort: z.enum(['ratedAt:desc', 'ratedAt:asc', 'rating:desc', 'rating:asc', 'title:asc', 'title:desc']).default('ratedAt:desc'),
   bookId: z.string().optional(),
 });
