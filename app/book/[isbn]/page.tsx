@@ -1,11 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
 import type { PredictionResult } from "@/types"
 import { PredictionDisplay } from "@/components/prediction-display"
+import { RatingInput } from "@/components/rating-input"
+import { StarRating } from "@/components/star-rating"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -14,6 +16,8 @@ import {
   Loader2,
   BookX,
   AlertCircle,
+  Calendar,
+  Pencil,
 } from "lucide-react"
 
 // API book type
@@ -23,6 +27,14 @@ interface ApiBook {
   title: string
   authors: string[]
   coverUrl?: string
+}
+
+// User rating type
+interface UserRatingData {
+  id: string
+  rating: number
+  ratedAt: string
+  source: string
 }
 
 export default function BookDetailPage({
@@ -41,6 +53,12 @@ export default function BookDetailPage({
   const [prediction, setPrediction] = useState<PredictionResult | null>(null)
   const [isPredicting, setIsPredicting] = useState(false)
   const [predictionError, setPredictionError] = useState<string | null>(null)
+
+  // Rating state
+  const [userRating, setUserRating] = useState<UserRatingData | null>(null)
+  const [isEditingRating, setIsEditingRating] = useState(false)
+  const [isSavingRating, setIsSavingRating] = useState(false)
+  const [ratingError, setRatingError] = useState<string | null>(null)
 
   // Fetch book data on mount
   useEffect(() => {
@@ -74,6 +92,19 @@ export default function BookDetailPage({
 
         const { book: bookData } = (await res.json()) as { book: ApiBook }
         setBook(bookData)
+
+        // Fetch user's rating for this book
+        try {
+          const ratingRes = await fetch(`/api/ratings?bookId=${bookData.id}`)
+          if (ratingRes.ok) {
+            const { ratings } = await ratingRes.json()
+            if (ratings && ratings.length > 0) {
+              setUserRating(ratings[0])
+            }
+          }
+        } catch {
+          // Rating fetch failed, not critical
+        }
       } catch {
         setError("Network error. Please try again.")
       } finally {
@@ -85,6 +116,52 @@ export default function BookDetailPage({
       fetchBook()
     }
   }, [isbn, status])
+
+  const handleRatingChange = useCallback(
+    async (newRating: number) => {
+      if (!book) return
+
+      setIsSavingRating(true)
+      setRatingError(null)
+
+      // Optimistic update
+      const previousRating = userRating
+      setUserRating({
+        id: userRating?.id ?? "temp",
+        rating: newRating,
+        ratedAt: new Date().toISOString(),
+        source: "manual",
+      })
+      setIsEditingRating(false)
+
+      try {
+        const res = await fetch("/api/ratings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookId: book.id, rating: newRating }),
+        })
+
+        if (!res.ok) {
+          throw new Error("Failed to save rating")
+        }
+
+        const { rating: savedRating } = await res.json()
+        setUserRating(savedRating)
+
+        // Clear prediction if showing, since we now have an actual rating
+        if (prediction) {
+          setPrediction(null)
+        }
+      } catch {
+        // Revert on error
+        setUserRating(previousRating)
+        setRatingError("Failed to save rating. Please try again.")
+      } finally {
+        setIsSavingRating(false)
+      }
+    },
+    [book, userRating, prediction]
+  )
 
   const handlePredict = async () => {
     if (!book) return
@@ -209,6 +286,83 @@ export default function BookDetailPage({
             <Badge variant="secondary" className="font-mono text-xs">
               ISBN: {book.isbn13}
             </Badge>
+          </div>
+
+          {/* User Rating Section */}
+          <div className="mt-8">
+            {userRating && !isEditingRating ? (
+              // Display existing rating
+              <div className="rounded-lg border border-border bg-card p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Your Rating
+                    </p>
+                    <div className="mt-1 flex items-center gap-3">
+                      <StarRating rating={userRating.rating} size="lg" showValue />
+                    </div>
+                    <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      Rated on{" "}
+                      {new Date(userRating.ratedAt).toLocaleDateString("en-US", {
+                        month: "long",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                      {userRating.source === "import" && (
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          Imported
+                        </Badge>
+                      )}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEditingRating(true)}
+                    className="gap-1.5"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    Edit
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              // Rating input (new or editing)
+              <div className="rounded-lg border border-border bg-card p-4">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {userRating ? "Update your rating" : "Rate this book"}
+                </p>
+                <div className="mt-3 flex items-center gap-4">
+                  <RatingInput
+                    value={userRating?.rating ?? null}
+                    onChange={handleRatingChange}
+                    disabled={isSavingRating}
+                    size="lg"
+                  />
+                  {isSavingRating && (
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+                {isEditingRating && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEditingRating(false)}
+                    className="mt-2"
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Rating Error */}
+            {ratingError && (
+              <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                <p className="text-sm text-destructive">{ratingError}</p>
+              </div>
+            )}
           </div>
 
           {/* Predict Button */}

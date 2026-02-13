@@ -257,11 +257,11 @@ Add "My Ratings" link to header navigation:
 
 ### Functional Requirements
 
-- [ ] User can click stars to rate a book 1-5 in 0.5 increments
-- [ ] Rating persists to database via API
-- [ ] User can update an existing rating
+- [x] User can click stars to rate a book 1-5 in 0.5 increments
+- [x] Rating persists to database via API
+- [x] User can update an existing rating
 - [ ] User can delete a rating (with confirmation)
-- [ ] Book detail page shows existing rating with date
+- [x] Book detail page shows existing rating with date
 - [ ] Ratings list page displays all user ratings
 - [ ] Ratings list is paginated and sortable
 - [ ] Header includes "My Ratings" navigation link
@@ -269,19 +269,19 @@ Add "My Ratings" link to header navigation:
 
 ### Non-Functional Requirements
 
-- [ ] Rating input is keyboard accessible
-- [ ] Screen reader announces rating changes
+- [x] Rating input is keyboard accessible
+- [x] Screen reader announces rating changes
 - [ ] API responses < 200ms
-- [ ] Optimistic UI updates for rating changes
-- [ ] Mobile-friendly touch targets (44x44px minimum)
+- [x] Optimistic UI updates for rating changes
+- [x] Mobile-friendly touch targets (44x44px minimum)
 
 ### Quality Gates
 
-- [ ] All new API routes have authentication checks
-- [ ] Rating validation prevents invalid values
+- [x] All new API routes have authentication checks
+- [x] Rating validation prevents invalid values
 - [ ] No N+1 queries in ratings list
-- [ ] TypeScript strict mode passes
-- [ ] ESLint passes
+- [x] TypeScript strict mode passes
+- [x] ESLint passes
 
 ## Edge Cases
 

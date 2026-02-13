@@ -15,6 +15,7 @@ const listRatingsSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
   sort: z.enum(['ratedAt:desc', 'ratedAt:asc', 'rating:desc', 'rating:asc', 'title:asc', 'title:desc']).default('ratedAt:desc'),
+  bookId: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -117,6 +118,7 @@ export async function GET(request: Request) {
       page: searchParams.get('page'),
       limit: searchParams.get('limit'),
       sort: searchParams.get('sort'),
+      bookId: searchParams.get('bookId') ?? undefined,
     });
 
     if (!result.success) {
@@ -126,7 +128,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const { page, limit, sort } = result.data;
+    const { page, limit, sort, bookId } = result.data;
     const skip = (page - 1) * limit;
 
     // Parse sort parameter
@@ -140,14 +142,18 @@ export async function GET(request: Request) {
       orderBy = { [sortField]: sortDirection };
     }
 
+    // Build where clause with optional bookId filter
+    const where = {
+      userId: session.user.id,
+      ...(bookId && { bookId }),
+    };
+
     // Get total count
-    const total = await db.userRating.count({
-      where: { userId: session.user.id },
-    });
+    const total = await db.userRating.count({ where });
 
     // Get paginated ratings with book details
     const ratings = await db.userRating.findMany({
-      where: { userId: session.user.id },
+      where,
       include: {
         book: {
           select: {
