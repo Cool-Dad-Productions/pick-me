@@ -6,6 +6,7 @@ import {
   getMatchingTerms,
   MIN_SIMILARITY_THRESHOLD,
 } from './index';
+import { log } from 'console';
 
 // ============================================================================
 // Configurable Constants
@@ -172,6 +173,7 @@ export function predictRating(input: PredictionInput): PredictionOutput {
       reason: 'no_similar_books',
     };
   }
+  vectors.delete(targetBook.id); // we don't want to test similarity to the same book
 
   // Compute similarity between target and each rated book
   type SimilarityWithRating = {
@@ -184,13 +186,14 @@ export function predictRating(input: PredictionInput): PredictionOutput {
 
   for (const ratedBook of ratedBooks) {
     const ratedVector = vectors.get(ratedBook.id);
-    if (!ratedVector) continue;
+    if (!ratedVector) continue; // don't include this book in the comparison
 
     const similarity = cosineSimilarity(targetVector, ratedVector);
 
     // Only include books above minimum threshold
     if (similarity >= MIN_SIMILARITY_THRESHOLD) {
       const matchingTerms = getMatchingTerms(targetVector, ratedVector, 5);
+      console.log('adding book', ratedBook);
       similarities.push({
         book: ratedBook,
         similarity,

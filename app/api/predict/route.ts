@@ -37,30 +37,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if user already has a rating for this book
-    const existingRating = await db.userRating.findUnique({
-      where: {
-        userId_bookId: {
-          userId: session.user.id,
-          bookId,
-        },
-      },
-    });
-
-    if (existingRating) {
-      const prediction: PredictionResult = {
-        predictedRating: existingRating.rating,
-        confidence: 1.0,
-        rationale: [
-          {
-            type: 'existing_rating',
-            message: 'You have already rated this book',
-          },
-        ],
-      };
-      return NextResponse.json(prediction);
-    }
-
     // Count user's ratings to check if we have enough data
     const ratingCount = await db.userRating.count({
       where: { userId: session.user.id },
