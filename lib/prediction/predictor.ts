@@ -193,7 +193,6 @@ export function predictRating(input: PredictionInput): PredictionOutput {
     // Only include books above minimum threshold
     if (similarity >= MIN_SIMILARITY_THRESHOLD) {
       const matchingTerms = getMatchingTerms(targetVector, ratedVector, 5);
-      console.log('adding book', ratedBook);
       similarities.push({
         book: ratedBook,
         similarity,
