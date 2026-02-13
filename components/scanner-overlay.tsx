@@ -22,7 +22,7 @@ interface ScannerOverlayProps {
 }
 
 // Multi-sample verification: require 2 matching consecutive reads within 500ms
-const MULTI_SAMPLE_TIMEOUT_MS = 500;
+const MULTI_SAMPLE_TIMEOUT_MS = 100;
 
 export function ScannerOverlay({
   open,
@@ -34,9 +34,6 @@ export function ScannerOverlay({
   const [cameraError, setCameraError] = useState<CameraError | null>(null);
   const [scanSuccess, setScanSuccess] = useState(false);
   const [invalidScanMessage, setInvalidScanMessage] = useState<string | null>(null);
-
-  // Track last scan for multi-sample verification
-  const lastScanRef = useRef<{ isbn: string; timestamp: number } | null>(null);
 
   const handleScan = useCallback(
     (scannedCode: string) => {
@@ -62,27 +59,15 @@ export function ScannerOverlay({
         return;
       }
 
-      // Multi-sample verification: require 2 matching reads
-      const now = Date.now();
-      const lastScan = lastScanRef.current;
+      // Success feedback
+      vibrateOnSuccess();
+      setScanSuccess(true);
 
-      if (lastScan && lastScan.isbn === normalizedIsbn && now - lastScan.timestamp < MULTI_SAMPLE_TIMEOUT_MS) {
-        // Confirmed match - two consecutive reads of the same ISBN
-        lastScanRef.current = null;
-
-        // Success feedback
-        vibrateOnSuccess();
-        setScanSuccess(true);
-
-        // Navigate after brief visual feedback
-        setTimeout(() => {
-          onOpenChange(false);
-          router.push(`/book/${normalizedIsbn}`);
-        }, 300);
-      } else {
-        // First read or different ISBN - store for verification
-        lastScanRef.current = { isbn: normalizedIsbn, timestamp: now };
-      }
+      // Navigate after brief visual feedback
+      setTimeout(() => {
+        onOpenChange(false);
+        router.push(`/book/${normalizedIsbn}`);
+      }, 300);
     },
     [onOpenChange, router]
   );
@@ -99,7 +84,6 @@ export function ScannerOverlay({
       setCameraError(null);
       setScanSuccess(false);
       setInvalidScanMessage(null);
-      lastScanRef.current = null;
     }, 300);
   }, [onOpenChange]);
 
