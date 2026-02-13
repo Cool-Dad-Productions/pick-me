@@ -214,6 +214,95 @@ Commit import with column mapping. Requires auth.
 
 ---
 
+## POST /api/ratings
+
+Create or update a rating for a book. Requires auth.
+
+**Request:**
+```json
+{
+  "bookId": "db-book-id",
+  "rating": 4.5
+}
+```
+
+**Response (201 Created / 200 OK):**
+```ts
+{
+  rating: {
+    id: string;
+    bookId: string;
+    rating: number;      // 1-5 in 0.5 increments
+    ratedAt: string;     // ISO date
+    source: "manual";
+  }
+}
+```
+
+**Errors:**
+- 400: `{ "error": "Rating must be in 0.5 increments" }` or validation error
+- 404: `{ "error": "Book not found" }`
+
+**Notes:**
+- Rating must be 1-5 in 0.5 increments (1, 1.5, 2, 2.5, etc.)
+- If user already rated this book, updates the existing rating
+- When updating an imported rating, `source` changes to `"manual"` and `importBatchId` is cleared
+
+---
+
+## GET /api/ratings
+
+List all ratings for the authenticated user. Requires auth.
+
+**Query Params:**
+- `page` - Page number (default: 1)
+- `limit` - Items per page, max 100 (default: 20)
+- `sort` - Sort order: `ratedAt:desc` (default), `ratedAt:asc`, `rating:desc`, `rating:asc`, `title:asc`, `title:desc`
+- `bookId` - Optional filter to get rating for a specific book
+
+**Response:**
+```ts
+{
+  ratings: UserRatingWithBook[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  }
+}
+
+interface UserRatingWithBook {
+  id: string;
+  rating: number;
+  ratedAt: string;       // ISO date
+  source: string;        // "manual" | "import"
+  book: {
+    id: string;
+    isbn13?: string;
+    title: string;
+    authors: string[];
+    coverUrl?: string;
+  }
+}
+```
+
+**Example:** `GET /api/ratings?page=1&limit=20&sort=ratedAt:desc`
+
+---
+
+## DELETE /api/ratings/[ratingId]
+
+Delete a rating. Requires auth.
+
+**Response (204 No Content):** Empty response on success.
+
+**Errors:**
+- 403: `{ "error": "Forbidden" }` - rating belongs to another user
+- 404: `{ "error": "Rating not found" }`
+
+---
+
 ## TypeScript Types
 
 Copy these into your components:
@@ -273,6 +362,29 @@ interface ImportStats {
   imported: number;
   errors: number;
   skipped: number;
+}
+
+// For user ratings
+interface UserRating {
+  id: string;
+  bookId: string;
+  rating: number;       // 1-5 in 0.5 increments
+  ratedAt: string;      // ISO date
+  source: string;       // "manual" | "import"
+}
+
+interface UserRatingWithBook extends UserRating {
+  book: Book;
+}
+
+interface RatingsListResponse {
+  ratings: UserRatingWithBook[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 ```
 
