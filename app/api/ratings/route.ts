@@ -20,7 +20,10 @@ const listRatingsSchema = z.object({
     (val) => (val === null || val === '' ? undefined : Number(val)),
     z.number().int().positive().max(100).default(20)
   ),
-  sort: z.enum(['ratedAt:desc', 'ratedAt:asc', 'rating:desc', 'rating:asc', 'title:asc', 'title:desc']).default('ratedAt:desc'),
+  sort: z.preprocess(
+    (val) => (val === null || val === '' ? undefined : val),
+    z.enum(['ratedAt:desc', 'ratedAt:asc', 'rating:desc', 'rating:asc', 'title:asc', 'title:desc']).default('ratedAt:desc')
+  ),
   bookId: z.preprocess(
     (val) => (val === null || val === '' ? undefined : val),
     z.string().optional()
