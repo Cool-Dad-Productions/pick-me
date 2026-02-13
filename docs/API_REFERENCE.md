@@ -258,6 +258,7 @@ List all ratings for the authenticated user. Requires auth.
 - `page` - Page number (default: 1)
 - `limit` - Items per page, max 100 (default: 20)
 - `sort` - Sort order: `ratedAt:desc` (default), `ratedAt:asc`, `rating:desc`, `rating:asc`, `title:asc`, `title:desc`
+- `bookId` - Optional filter to get rating for a specific book
 
 **Response:**
 ```ts
