@@ -45,9 +45,12 @@ export async function GET(
       );
     }
 
-    // Create book record with subjects (enriched on creation)
-    book = await db.book.create({
-      data: {
+    // Use upsert to handle race conditions from rapid barcode scans.
+    // If another request created the book while we were fetching from Open Library,
+    // this will return the existing book instead of throwing a unique constraint error.
+    book = await db.book.upsert({
+      where: { isbn13: bookData.isbn13 },
+      create: {
         isbn13: bookData.isbn13,
         title: bookData.title,
         authors: bookData.authors,
@@ -56,6 +59,7 @@ export async function GET(
         metadata: bookData.metadata as Prisma.InputJsonValue,
         lastEnrichedAt: bookData.subjects.length > 0 ? new Date() : null,
       },
+      update: {}, // No update needed - just return the existing book
     });
 
     return NextResponse.json({ book });
