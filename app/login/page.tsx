@@ -1,9 +1,7 @@
 "use client"
 
-import React from "react"
-
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { Suspense, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,12 +10,45 @@ import { BookOpen, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFormSkeleton />}>
+      <LoginForm />
+    </Suspense>
+  )
+}
+
+function LoginFormSkeleton() {
+  return (
+    <div className="flex flex-1 items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
+        <div className="mb-8 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary">
+            <BookOpen className="h-7 w-7 text-primary-foreground" />
+          </div>
+          <div className="h-8 w-48 mx-auto bg-muted animate-pulse rounded" />
+          <div className="mt-2 h-4 w-64 mx-auto bg-muted animate-pulse rounded" />
+        </div>
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+          <div className="flex flex-col gap-5">
+            <div className="h-10 bg-muted animate-pulse rounded" />
+            <div className="h-10 bg-muted animate-pulse rounded" />
+            <div className="h-10 bg-muted animate-pulse rounded" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function LoginForm() {
   const [isRegister, setIsRegister] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get("callbackUrl") || "/search"
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,7 +89,8 @@ export default function LoginPage() {
       if (!isRegister) {
         toast.success("Welcome back!")
       }
-      router.push("/search")
+      router.refresh()
+      router.push(callbackUrl)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong")
     } finally {
