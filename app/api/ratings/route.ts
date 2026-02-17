@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { ratingSchema } from '@/lib/validations';
-import { getWorkIdForBook } from '@/lib/books/workId';
+import { getWorkIdForBook, generateSyntheticWorkId } from '@/lib/books/workId';
 
 const createRatingSchema = z.object({
   bookId: z.string().min(1, 'Book ID is required'),
@@ -180,8 +180,12 @@ export async function GET(request: Request) {
 
     // Batch fetch representative books for each work
     const workIds = ratings.map((r) => r.openLibraryWorkId);
-    const books = await db.book.findMany({
-      where: { openLibraryWorkId: { in: workIds } },
+    const realWorkIds = workIds.filter((id) => !id.startsWith('synthetic:'));
+    const syntheticWorkIds = new Set(workIds.filter((id) => id.startsWith('synthetic:')));
+
+    // Fetch books with real OpenLibrary work IDs
+    const booksWithRealIds = await db.book.findMany({
+      where: { openLibraryWorkId: { in: realWorkIds } },
       select: {
         id: true,
         isbn13: true,
@@ -193,10 +197,33 @@ export async function GET(request: Request) {
     });
 
     // Create lookup map (pick first book per work)
-    const bookByWorkId = new Map<string, (typeof books)[0]>();
-    for (const book of books) {
+    type BookInfo = (typeof booksWithRealIds)[0];
+    const bookByWorkId = new Map<string, BookInfo>();
+    for (const book of booksWithRealIds) {
       if (book.openLibraryWorkId && !bookByWorkId.has(book.openLibraryWorkId)) {
         bookByWorkId.set(book.openLibraryWorkId, book);
+      }
+    }
+
+    // For synthetic work IDs, find books without openLibraryWorkId and compute their synthetic ID
+    if (syntheticWorkIds.size > 0) {
+      const booksWithoutWorkId = await db.book.findMany({
+        where: { openLibraryWorkId: null },
+        select: {
+          id: true,
+          isbn13: true,
+          title: true,
+          authors: true,
+          coverUrl: true,
+          openLibraryWorkId: true,
+        },
+      });
+
+      for (const book of booksWithoutWorkId) {
+        const syntheticId = generateSyntheticWorkId(book.title, book.authors);
+        if (syntheticWorkIds.has(syntheticId) && !bookByWorkId.has(syntheticId)) {
+          bookByWorkId.set(syntheticId, { ...book, openLibraryWorkId: syntheticId });
+        }
       }
     }
 
