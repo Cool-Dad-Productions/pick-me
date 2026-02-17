@@ -58,8 +58,19 @@ export async function enrichBook(
   const needsGenres = book.genres.length === 0;
   const needsPageCount = book.pageCount === null;
 
+  console.log(`[Enrichment] Book ${bookId} needs:`, {
+    needsSubjects,
+    needsGenres,
+    needsPageCount,
+    hasIsbn: !!book.isbn13,
+    isbn: book.isbn13,
+    currentGenres: book.genres,
+    currentPageCount: book.pageCount,
+  });
+
   // Skip if nothing to do (unless force)
   if (!force && !needsSubjects && !needsGenres && !needsPageCount) {
+    console.log(`[Enrichment] Book ${bookId} already enriched, skipping`);
     result.success = true;
     return result;
   }
@@ -87,9 +98,20 @@ export async function enrichBook(
   }
 
   // 2. Google Books enrichment for genres and page count
-  if ((needsGenres || needsPageCount || force) && book.isbn13) {
+  const shouldCallGoogleBooks = (needsGenres || needsPageCount || force) && book.isbn13;
+  console.log(`[Enrichment] Google Books check:`, {
+    shouldCall: shouldCallGoogleBooks,
+    needsGenres,
+    needsPageCount,
+    force,
+    hasIsbn: !!book.isbn13,
+  });
+
+  if (shouldCallGoogleBooks) {
     try {
-      const gbData = await googleBooksLookup(book.isbn13);
+      console.log(`[Enrichment] Calling Google Books for ISBN: ${book.isbn13}`);
+      const gbData = await googleBooksLookup(book.isbn13!);
+      console.log(`[Enrichment] Google Books response:`, gbData);
       if (gbData) {
         result.sources.googleBooks = true;
 
