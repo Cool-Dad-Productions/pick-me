@@ -182,12 +182,12 @@ model UserRating {
 ```
 
 **Tasks:**
-- [ ] Update `POST /api/ratings` to upsert `WorkRating` instead of `UserRating`
-- [ ] Handle books without workId: generate synthetic work ID on-the-fly
-- [ ] Update `GET /api/books/[bookId]` to fetch rating via workId lookup
-- [ ] Update `GET /api/ratings` to return work-level ratings with book info
-- [ ] Add migration endpoint or script to handle edge cases
-- [ ] Update rating validation (still 1.0-5.0 in 0.5 increments)
+- [x] Update `POST /api/ratings` to upsert `WorkRating` instead of `UserRating`
+- [x] Handle books without workId: generate synthetic work ID on-the-fly
+- [x] Update `GET /api/books/[bookId]` to fetch rating via workId lookup
+- [x] Update `GET /api/ratings` to return work-level ratings with book info
+- [x] Add migration endpoint or script to handle edge cases
+- [x] Update rating validation (still 1.0-5.0 in 0.5 increments)
 
 **Files to modify:**
 - `app/api/ratings/route.ts`
@@ -195,10 +195,10 @@ model UserRating {
 - `lib/validations.ts` (if rating validation changes)
 
 **Acceptance criteria:**
-- [ ] Rating any edition updates the work-level rating
-- [ ] Viewing any edition shows the work-level rating
-- [ ] User's rating list shows deduplicated work ratings
-- [ ] Books without workId still support ratings via synthetic ID
+- [x] Rating any edition updates the work-level rating
+- [x] Viewing any edition shows the work-level rating
+- [x] User's rating list shows deduplicated work ratings
+- [x] Books without workId still support ratings via synthetic ID
 
 ---
 

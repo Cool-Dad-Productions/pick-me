@@ -1,3 +1,4 @@
+import 'server-only';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
@@ -37,8 +38,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Count user's ratings to check if we have enough data
-    const ratingCount = await db.userRating.count({
+    // Count user's work-level ratings to check if we have enough data
+    const ratingCount = await db.workRating.count({
       where: { userId: session.user.id },
     });
 
@@ -64,28 +65,46 @@ export async function POST(request: Request) {
       subjects: book.subjects,
     };
 
-    // Fetch user's rated books with ratings and metadata
-    const userRatings = await db.userRating.findMany({
+    // Fetch user's work-level ratings
+    const workRatings = await db.workRating.findMany({
       where: { userId: session.user.id },
-      include: {
-        book: {
-          select: {
-            id: true,
-            title: true,
-            authors: true,
-            subjects: true,
-          },
-        },
+    });
+
+    // Batch fetch books for these work IDs
+    const workIds = workRatings.map((r) => r.openLibraryWorkId);
+    const books = await db.book.findMany({
+      where: { openLibraryWorkId: { in: workIds } },
+      select: {
+        id: true,
+        title: true,
+        authors: true,
+        subjects: true,
+        openLibraryWorkId: true,
       },
     });
 
-    const ratedBooks: RatedBook[] = userRatings.map(ur => ({
-      id: ur.book.id,
-      title: ur.book.title,
-      authors: ur.book.authors,
-      subjects: ur.book.subjects,
-      rating: ur.rating,
-    }));
+    // Create lookup map (first book per work)
+    const bookByWorkId = new Map<string, (typeof books)[0]>();
+    for (const b of books) {
+      if (b.openLibraryWorkId && !bookByWorkId.has(b.openLibraryWorkId)) {
+        bookByWorkId.set(b.openLibraryWorkId, b);
+      }
+    }
+
+    // Build rated books array, skipping any without a matching book
+    const ratedBooks: RatedBook[] = workRatings
+      .map((wr) => {
+        const b = bookByWorkId.get(wr.openLibraryWorkId);
+        if (!b) return null;
+        return {
+          id: b.id,
+          title: b.title,
+          authors: b.authors,
+          subjects: b.subjects,
+          rating: wr.rating,
+        };
+      })
+      .filter((rb): rb is RatedBook => rb !== null);
 
     // Run prediction algorithm
     const predictionResult = predictRating({ targetBook, ratedBooks });
