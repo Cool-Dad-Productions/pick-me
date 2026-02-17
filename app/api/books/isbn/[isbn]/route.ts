@@ -57,6 +57,8 @@ export async function GET(
         subjects: bookData.subjects,
         coverUrl: bookData.coverUrl,
         metadata: bookData.metadata as Prisma.InputJsonValue,
+        openLibraryWorkId: bookData.openLibraryWorkId,
+        publicationYear: bookData.publicationYear,
         lastEnrichedAt: bookData.subjects.length > 0 ? new Date() : null,
       },
       update: {}, // No update needed - just return the existing book

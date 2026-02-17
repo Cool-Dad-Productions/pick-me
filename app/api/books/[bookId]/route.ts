@@ -27,12 +27,17 @@ export async function GET(
       );
     }
 
-    // Lazy enrichment: fetch subjects if not already enriched
+    // Lazy enrichment: fetch subjects/genres if not already enriched
     if (needsEnrichment(book)) {
       console.log(`[BookDetail] Lazy enriching book ${bookId}`);
       const result = await enrichBook(bookId);
 
-      if (result.success && result.subjectsAdded > 0) {
+      // Refetch if any enrichment occurred (subjects, genres, or page count)
+      const anyEnriched =
+        result.success &&
+        (result.subjectsAdded > 0 || result.genresAdded > 0 || result.pageCountSet);
+
+      if (anyEnriched) {
         // Refetch the updated book
         book = await db.book.findUnique({
           where: { id: bookId },
