@@ -195,5 +195,5 @@ Optional:
 - **M2 (Real predictor):** implement TF-IDF similarity across user-rated books using metadata text; return top 3 nearest neighbors in rationale.
 - **M3 (Bookstore UX):** add barcode scanning on mobile; one-tap lookup + predict.
 - **M4 (Feedback loop):** store PredictionEvent, allow actual rating entry later; incorporate into model.
-- **M5 (Improved metadata):** Seed book database with data from OpenLibrary, Google Books, and Wikidata. Implement CSV uploads for bulk data import, and API integration for one off requests for missing books. Update prediction model to incorporate new data dimensions (e.g., author, approximate book length, genres).
+- **M5 (Improved metadata):** Seed book database with data from OpenLibrary, Google Books, and Wikidata. Normalize all editions of the same book based on a canonical Works ID. Implement CSV uploads for bulk data import, and API integration for one off requests for missing books. Update prediction model to incorporate new data dimensions (e.g., author, approximate book length, genres).
 - **M6 (Pile photo):** detect multiple books (barcode/OCR) and choose best.
