@@ -34,16 +34,18 @@ import {
 
 interface RatingWithBook {
   id: string
+  workId: string
   rating: number
   ratedAt: string
   source: string
+  notes: string | null
   book: {
     id: string
     isbn13: string | null
     title: string
     authors: string[]
     coverUrl: string | null
-  }
+  } | null
 }
 
 interface Pagination {
@@ -53,15 +55,13 @@ interface Pagination {
   totalPages: number
 }
 
-type SortOption = "ratedAt:desc" | "ratedAt:asc" | "rating:desc" | "rating:asc" | "title:asc" | "title:desc"
+type SortOption = "ratedAt:desc" | "ratedAt:asc" | "rating:desc" | "rating:asc"
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: "ratedAt:desc", label: "Most Recent" },
   { value: "ratedAt:asc", label: "Oldest First" },
   { value: "rating:desc", label: "Highest Rated" },
   { value: "rating:asc", label: "Lowest Rated" },
-  { value: "title:asc", label: "Title A-Z" },
-  { value: "title:desc", label: "Title Z-A" },
 ]
 
 export default function RatingsPage() {
@@ -226,65 +226,71 @@ export default function RatingsPage() {
       {/* Ratings List */}
       {ratings.length > 0 && (
         <div className="space-y-4">
-          {ratings.map((item) => (
-            <div
-              key={item.id}
-              className="flex gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:bg-accent/5"
-            >
-              {/* Cover */}
-              <Link
-                href={`/book/${item.book.isbn13}`}
-                className="relative h-24 w-16 flex-shrink-0 overflow-hidden rounded-md bg-muted"
+          {ratings.map((item) => {
+            const book = item.book
+            const bookUrl = book?.isbn13 ? `/book/${book.isbn13}` : book?.id ? `/book/${book.id}` : "#"
+            const title = book?.title ?? "Unknown Book"
+            const authors = book?.authors?.join(", ") ?? "Unknown Author"
+            const coverUrl = book?.coverUrl || "/placeholder.svg"
+
+            return (
+              <div
+                key={item.id}
+                className="flex gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:bg-accent/5"
               >
-                <Image
-                  src={item.book.coverUrl || "/placeholder.svg"}
-                  alt={`Cover of ${item.book.title}`}
-                  fill
-                  className="object-cover"
-                  sizes="64px"
-                />
-              </Link>
-
-              {/* Info */}
-              <div className="flex flex-1 flex-col">
+                {/* Cover */}
                 <Link
-                  href={`/book/${item.book.isbn13}`}
-                  className="font-serif text-lg font-semibold text-foreground hover:text-primary"
+                  href={bookUrl}
+                  className="relative h-24 w-16 flex-shrink-0 overflow-hidden rounded-md bg-muted"
                 >
-                  {item.book.title}
+                  <Image
+                    src={coverUrl}
+                    alt={`Cover of ${title}`}
+                    fill
+                    className="object-cover"
+                    sizes="64px"
+                  />
                 </Link>
-                <p className="text-sm text-muted-foreground">
-                  {item.book.authors.join(", ")}
-                </p>
 
-                <div className="mt-2 flex items-center gap-3">
-                  <StarRating rating={item.rating} size="sm" showValue />
+                {/* Info */}
+                <div className="flex flex-1 flex-col">
+                  <Link
+                    href={bookUrl}
+                    className="font-serif text-lg font-semibold text-foreground hover:text-primary"
+                  >
+                    {title}
+                  </Link>
+                  <p className="text-sm text-muted-foreground">{authors}</p>
+
+                  <div className="mt-2 flex items-center gap-3">
+                    <StarRating rating={item.rating} size="sm" showValue />
+                  </div>
+
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3" />
+                    {new Date(item.ratedAt).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </p>
                 </div>
 
-                <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  {new Date(item.ratedAt).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </p>
+                {/* Actions */}
+                <div className="flex items-start">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setDeleteTarget(item)}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span className="sr-only">Delete rating</span>
+                  </Button>
+                </div>
               </div>
-
-              {/* Actions */}
-              <div className="flex items-start">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setDeleteTarget(item)}
-                  className="text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span className="sr-only">Delete rating</span>
-                </Button>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -324,7 +330,7 @@ export default function RatingsPage() {
             <AlertDialogTitle>Delete Rating</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete your rating for{" "}
-              <span className="font-medium">{deleteTarget?.book.title}</span>?
+              <span className="font-medium">{deleteTarget?.book?.title ?? "this book"}</span>?
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
