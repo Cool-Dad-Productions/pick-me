@@ -2,11 +2,18 @@ import 'server-only';
 import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { fetchWorkSubjects } from './openlibrary';
+import { lookupByIsbn as googleBooksLookup } from './googlebooks';
 
 export interface EnrichmentResult {
   bookId: string;
   success: boolean;
   subjectsAdded: number;
+  genresAdded: number;
+  pageCountSet: boolean;
+  sources: {
+    openLibrary: boolean;
+    googleBooks: boolean;
+  };
   error?: string;
 }
 
@@ -19,8 +26,8 @@ export interface BatchEnrichmentStats {
 }
 
 /**
- * Enrich a single book with subjects from Open Library.
- * Skips books that already have subjects (unless force is true).
+ * Enrich a single book with subjects from Open Library and genres from Google Books.
+ * Skips enrichment sources that already have data (unless force is true).
  */
 export async function enrichBook(
   bookId: string,
@@ -28,61 +35,131 @@ export async function enrichBook(
 ): Promise<EnrichmentResult> {
   const { force = false } = options || {};
 
+  const result: EnrichmentResult = {
+    bookId,
+    success: false,
+    subjectsAdded: 0,
+    genresAdded: 0,
+    pageCountSet: false,
+    sources: { openLibrary: false, googleBooks: false },
+  };
+
   const book = await db.book.findUnique({
     where: { id: bookId },
   });
 
   if (!book) {
-    return { bookId, success: false, subjectsAdded: 0, error: 'Book not found' };
+    result.error = 'Book not found';
+    return result;
   }
 
-  // Skip if already has subjects (unless force)
-  if (!force && book.subjects.length > 0) {
-    return { bookId, success: true, subjectsAdded: 0 };
+  // Check what enrichment is needed
+  const needsSubjects = book.subjects.length === 0;
+  const needsGenres = book.genres.length === 0;
+  const needsPageCount = book.pageCount === null;
+
+  console.log(`[Enrichment] Book ${bookId} needs:`, {
+    needsSubjects,
+    needsGenres,
+    needsPageCount,
+    hasIsbn: !!book.isbn13,
+    isbn: book.isbn13,
+    currentGenres: book.genres,
+    currentPageCount: book.pageCount,
+  });
+
+  // Skip if nothing to do (unless force)
+  if (!force && !needsSubjects && !needsGenres && !needsPageCount) {
+    console.log(`[Enrichment] Book ${bookId} already enriched, skipping`);
+    result.success = true;
+    return result;
   }
 
-  // Extract work key from metadata
-  const metadata = book.metadata as { works?: { key: string }[] } | null;
-  const workKey = metadata?.works?.[0]?.key;
+  const updates: Prisma.BookUpdateInput = {};
 
-  if (!workKey) {
-    return {
-      bookId,
-      success: false,
-      subjectsAdded: 0,
-      error: 'No work key in metadata',
-    };
+  // 1. OpenLibrary enrichment for subjects
+  if (needsSubjects || force) {
+    const metadata = book.metadata as { works?: { key: string }[] } | null;
+    const workKey = metadata?.works?.[0]?.key;
+
+    if (workKey) {
+      try {
+        const subjects = await fetchWorkSubjects(workKey);
+        if (subjects.length > 0) {
+          updates.subjects = subjects;
+          result.subjectsAdded = subjects.length;
+          result.sources.openLibrary = true;
+        }
+      } catch (error) {
+        console.error(`[Enrichment] OpenLibrary failed for book ${bookId}:`, error);
+        // Continue with Google Books even if OpenLibrary fails
+      }
+    }
   }
 
-  try {
-    const subjects = await fetchWorkSubjects(workKey);
+  // 2. Google Books enrichment for genres and page count
+  const shouldCallGoogleBooks = (needsGenres || needsPageCount || force) && book.isbn13;
+  console.log(`[Enrichment] Google Books check:`, {
+    shouldCall: shouldCallGoogleBooks,
+    needsGenres,
+    needsPageCount,
+    force,
+    hasIsbn: !!book.isbn13,
+  });
 
+  if (shouldCallGoogleBooks) {
+    try {
+      console.log(`[Enrichment] Calling Google Books for ISBN: ${book.isbn13}`);
+      const gbData = await googleBooksLookup(book.isbn13!);
+      console.log(`[Enrichment] Google Books response:`, gbData);
+      if (gbData) {
+        result.sources.googleBooks = true;
+
+        if (gbData.genres.length > 0 && (needsGenres || force)) {
+          updates.genres = gbData.genres;
+          result.genresAdded = gbData.genres.length;
+        }
+
+        if (gbData.pageCount && (needsPageCount || force)) {
+          updates.pageCount = gbData.pageCount;
+          result.pageCountSet = true;
+        }
+
+        // Use Google Books publication year if not already set
+        if (!book.publicationYear && gbData.publishedDate) {
+          const year = parseInt(gbData.publishedDate.substring(0, 4), 10);
+          if (!isNaN(year)) {
+            updates.publicationYear = year;
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`[Enrichment] Google Books failed for book ${bookId}:`, error);
+      // Continue - partial enrichment is still valuable
+    }
+  }
+
+  // Update book if we have any changes
+  if (Object.keys(updates).length > 0) {
+    updates.lastEnrichedAt = new Date();
     await db.book.update({
       where: { id: bookId },
-      data: {
-        subjects,
-        lastEnrichedAt: new Date(),
-      },
+      data: updates,
     });
 
-    console.log(
-      `[Enrichment] Book ${bookId} enriched with ${subjects.length} subjects`
-    );
-
-    return { bookId, success: true, subjectsAdded: subjects.length };
-  } catch (error) {
-    console.error(`[Enrichment] Failed to enrich book ${bookId}:`, error);
-    return {
-      bookId,
-      success: false,
-      subjectsAdded: 0,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
+    console.log(`[Enrichment] Book ${bookId} enriched:`, {
+      subjectsAdded: result.subjectsAdded,
+      genresAdded: result.genresAdded,
+      pageCountSet: result.pageCountSet,
+    });
   }
+
+  result.success = true;
+  return result;
 }
 
 /**
- * Enrich multiple books that are missing subjects.
+ * Enrich multiple books that are missing subjects, genres, or page count.
  * Respects rate limits with configurable delay between requests.
  */
 export async function enrichAllBooks(options?: {
@@ -91,10 +168,14 @@ export async function enrichAllBooks(options?: {
 }): Promise<BatchEnrichmentStats> {
   const { batchSize = 50, delayMs = 1000 } = options || {};
 
-  // Find books without subjects that have metadata with work keys
+  // Find books that need enrichment (missing subjects, genres, or page count)
   const books = await db.book.findMany({
     where: {
-      subjects: { isEmpty: true },
+      OR: [
+        { subjects: { isEmpty: true } },
+        { genres: { isEmpty: true } },
+        { pageCount: null },
+      ],
       NOT: { metadata: { equals: Prisma.JsonNull } },
     },
     take: batchSize,
@@ -111,7 +192,9 @@ export async function enrichAllBooks(options?: {
     results.push(result);
 
     if (result.success) {
-      if (result.subjectsAdded > 0) {
+      const anyEnriched =
+        result.subjectsAdded > 0 || result.genresAdded > 0 || result.pageCountSet;
+      if (anyEnriched) {
         enriched++;
       } else {
         skipped++;
@@ -140,8 +223,9 @@ export async function enrichAllBooks(options?: {
     enriched: stats.enriched,
     failed: stats.failed,
     skipped: stats.skipped,
-    highCoverage: results.filter((r) => r.subjectsAdded >= 10).length,
-    noCoverage: results.filter((r) => r.subjectsAdded === 0 && r.success).length,
+    highSubjectCoverage: results.filter((r) => r.subjectsAdded >= 10).length,
+    withGenres: results.filter((r) => r.genresAdded > 0).length,
+    withPageCount: results.filter((r) => r.pageCountSet).length,
   });
 
   return stats;
@@ -149,21 +233,25 @@ export async function enrichAllBooks(options?: {
 
 /**
  * Check if a book needs enrichment.
- * Returns true if the book has no subjects and has a work key in metadata.
+ * Returns true if the book is missing subjects (with work key), genres, or page count (with ISBN).
  */
 export function needsEnrichment(book: {
   subjects: string[];
+  genres: string[];
+  pageCount: number | null;
+  isbn13: string | null;
   metadata: unknown;
   lastEnrichedAt: Date | null;
 }): boolean {
-  // Already has subjects
-  if (book.subjects.length > 0) {
-    return false;
-  }
-
-  // Check if metadata has work key
+  // Check if missing subjects and has work key for OpenLibrary
   const metadata = book.metadata as { works?: { key: string }[] } | null;
   const hasWorkKey = Boolean(metadata?.works?.[0]?.key);
+  const needsSubjects = book.subjects.length === 0 && hasWorkKey;
 
-  return hasWorkKey;
+  // Check if missing genres/pageCount and has ISBN for Google Books
+  const hasIsbn = Boolean(book.isbn13);
+  const needsGenres = book.genres.length === 0 && hasIsbn;
+  const needsPageCount = book.pageCount === null && hasIsbn;
+
+  return needsSubjects || needsGenres || needsPageCount;
 }

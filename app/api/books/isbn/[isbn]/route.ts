@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { lookupByIsbn } from '@/lib/books/openlibrary';
 import { normalizeIsbn } from '@/lib/validations';
+import { needsEnrichment, enrichBook } from '@/lib/books/enrichment';
 
 export async function GET(
   request: Request,
@@ -32,6 +33,17 @@ export async function GET(
     });
 
     if (book) {
+      // Lazy enrichment for existing books (e.g., add Google Books data)
+      if (needsEnrichment(book)) {
+        console.log(`[ISBN Route] Lazy enriching existing book ${book.id}`);
+        const result = await enrichBook(book.id);
+        if (result.success && (result.genresAdded > 0 || result.pageCountSet)) {
+          // Refetch the updated book
+          book = await db.book.findUnique({
+            where: { isbn13: normalizedIsbn },
+          });
+        }
+      }
       return NextResponse.json({ book });
     }
 
@@ -57,10 +69,24 @@ export async function GET(
         subjects: bookData.subjects,
         coverUrl: bookData.coverUrl,
         metadata: bookData.metadata as Prisma.InputJsonValue,
+        openLibraryWorkId: bookData.openLibraryWorkId,
+        publicationYear: bookData.publicationYear,
         lastEnrichedAt: bookData.subjects.length > 0 ? new Date() : null,
       },
       update: {}, // No update needed - just return the existing book
     });
+
+    // Enrich newly created book with Google Books data (genres, pageCount)
+    if (book && needsEnrichment(book)) {
+      console.log(`[ISBN Route] Enriching new book ${book.id} with Google Books`);
+      const result = await enrichBook(book.id);
+      if (result.success && (result.genresAdded > 0 || result.pageCountSet)) {
+        // Refetch the updated book
+        book = await db.book.findUnique({
+          where: { id: book.id },
+        });
+      }
+    }
 
     return NextResponse.json({ book });
   } catch (error) {

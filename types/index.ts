@@ -53,3 +53,6 @@ export interface ImportStats {
   errors: number;
   skipped: number;
 }
+
+// Re-export Google Books types for convenience
+export type { GoogleBooksMetadata } from '@/lib/books/googlebooks';
