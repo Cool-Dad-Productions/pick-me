@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { ratingSchema } from '@/lib/validations';
+import { getWorkIdForBook } from '@/lib/books/workId';
 
 const createRatingSchema = z.object({
   bookId: z.string().min(1, 'Book ID is required'),
@@ -22,9 +23,9 @@ const listRatingsSchema = z.object({
   ),
   sort: z.preprocess(
     (val) => (val === null || val === '' ? undefined : val),
-    z.enum(['ratedAt:desc', 'ratedAt:asc', 'rating:desc', 'rating:asc', 'title:asc', 'title:desc']).default('ratedAt:desc')
+    z.enum(['ratedAt:desc', 'ratedAt:asc', 'rating:desc', 'rating:asc']).default('ratedAt:desc')
   ),
-  bookId: z.preprocess(
+  workId: z.preprocess(
     (val) => (val === null || val === '' ? undefined : val),
     z.string().optional()
   ),
@@ -49,48 +50,53 @@ export async function POST(request: Request) {
 
     const { bookId, rating } = result.data;
 
-    // Verify book exists
+    // Verify book exists and get fields needed for work ID
     const book = await db.book.findUnique({
       where: { id: bookId },
+      select: {
+        id: true,
+        title: true,
+        authors: true,
+        openLibraryWorkId: true,
+        coverUrl: true,
+      },
     });
 
     if (!book) {
-      return NextResponse.json(
-        { error: 'Book not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Book not found' }, { status: 404 });
     }
 
-    // Check if rating already exists
-    const existingRating = await db.userRating.findUnique({
+    // Get work ID (real or synthetic)
+    const workId = getWorkIdForBook(book);
+
+    // Check if rating already exists (for 200 vs 201 response)
+    const existingRating = await db.workRating.findUnique({
       where: {
-        userId_bookId: {
+        userId_openLibraryWorkId: {
           userId: session.user.id,
-          bookId,
+          openLibraryWorkId: workId,
         },
       },
     });
 
     const isUpdate = !!existingRating;
 
-    // Create or update rating
-    const userRating = await db.userRating.upsert({
+    // Create or update work-level rating
+    const workRating = await db.workRating.upsert({
       where: {
-        userId_bookId: {
+        userId_openLibraryWorkId: {
           userId: session.user.id,
-          bookId,
+          openLibraryWorkId: workId,
         },
       },
       update: {
         rating,
         ratedAt: new Date(),
         source: 'manual',
-        // Clear import batch relationship when manually updating
-        importBatchId: null,
       },
       create: {
         userId: session.user.id,
-        bookId,
+        openLibraryWorkId: workId,
         rating,
         ratedAt: new Date(),
         source: 'manual',
@@ -100,11 +106,17 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         rating: {
-          id: userRating.id,
-          bookId: userRating.bookId,
-          rating: userRating.rating,
-          ratedAt: userRating.ratedAt?.toISOString(),
-          source: userRating.source,
+          id: workRating.id,
+          workId: workRating.openLibraryWorkId,
+          rating: workRating.rating,
+          ratedAt: workRating.ratedAt?.toISOString(),
+          source: workRating.source,
+          book: {
+            id: book.id,
+            title: book.title,
+            authors: book.authors,
+            coverUrl: book.coverUrl,
+          },
         },
       },
       { status: isUpdate ? 200 : 201 }
@@ -130,7 +142,7 @@ export async function GET(request: Request) {
       page: searchParams.get('page'),
       limit: searchParams.get('limit'),
       sort: searchParams.get('sort'),
-      bookId: searchParams.get('bookId') ?? undefined,
+      workId: searchParams.get('workId') ?? undefined,
     });
 
     if (!result.success) {
@@ -140,61 +152,63 @@ export async function GET(request: Request) {
       );
     }
 
-    const { page, limit, sort, bookId } = result.data;
+    const { page, limit, sort, workId } = result.data;
     const skip = (page - 1) * limit;
 
     // Parse sort parameter
     const [sortField, sortDirection] = sort.split(':') as [string, 'asc' | 'desc'];
 
-    // Build orderBy based on sort field
-    let orderBy: Record<string, unknown>;
-    if (sortField === 'title') {
-      orderBy = { book: { title: sortDirection } };
-    } else {
-      orderBy = { [sortField]: sortDirection };
-    }
+    // Build orderBy for WorkRating fields
+    const orderBy = { [sortField]: sortDirection };
 
-    // Build where clause with optional bookId filter
+    // Build where clause with optional workId filter
     const where = {
       userId: session.user.id,
-      ...(bookId && { bookId }),
+      ...(workId && { openLibraryWorkId: workId }),
     };
 
-    // Get total count
-    const total = await db.userRating.count({ where });
+    // Get total count and paginated work ratings
+    const [total, ratings] = await Promise.all([
+      db.workRating.count({ where }),
+      db.workRating.findMany({
+        where,
+        orderBy,
+        skip,
+        take: limit,
+      }),
+    ]);
 
-    // Get paginated ratings with book details
-    const ratings = await db.userRating.findMany({
-      where,
-      include: {
-        book: {
-          select: {
-            id: true,
-            isbn13: true,
-            title: true,
-            authors: true,
-            coverUrl: true,
-          },
-        },
+    // Batch fetch representative books for each work
+    const workIds = ratings.map((r) => r.openLibraryWorkId);
+    const books = await db.book.findMany({
+      where: { openLibraryWorkId: { in: workIds } },
+      select: {
+        id: true,
+        isbn13: true,
+        title: true,
+        authors: true,
+        coverUrl: true,
+        openLibraryWorkId: true,
       },
-      orderBy,
-      skip,
-      take: limit,
     });
+
+    // Create lookup map (pick first book per work)
+    const bookByWorkId = new Map<string, (typeof books)[0]>();
+    for (const book of books) {
+      if (book.openLibraryWorkId && !bookByWorkId.has(book.openLibraryWorkId)) {
+        bookByWorkId.set(book.openLibraryWorkId, book);
+      }
+    }
 
     return NextResponse.json({
       ratings: ratings.map((r) => ({
         id: r.id,
+        workId: r.openLibraryWorkId,
         rating: r.rating,
         ratedAt: r.ratedAt?.toISOString() ?? r.createdAt.toISOString(),
         source: r.source,
-        book: {
-          id: r.book.id,
-          isbn13: r.book.isbn13,
-          title: r.book.title,
-          authors: r.book.authors,
-          coverUrl: r.book.coverUrl,
-        },
+        notes: r.notes,
+        book: bookByWorkId.get(r.openLibraryWorkId) ?? null,
       })),
       pagination: {
         page,

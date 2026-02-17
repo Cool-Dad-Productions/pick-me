@@ -1,8 +1,10 @@
+import 'server-only';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { needsEnrichment, enrichBook } from '@/lib/books/enrichment';
+import { getWorkIdForBook } from '@/lib/books/workId';
 
 export async function GET(
   request: Request,
@@ -52,7 +54,26 @@ export async function GET(
       }
     }
 
-    return NextResponse.json({ book });
+    // Get work ID for rating lookup
+    const workId = getWorkIdForBook(book);
+
+    // Lookup user's work-level rating
+    let userRating: number | null = null;
+    const workRating = await db.workRating.findUnique({
+      where: {
+        userId_openLibraryWorkId: {
+          userId: session.user.id,
+          openLibraryWorkId: workId,
+        },
+      },
+      select: { rating: true },
+    });
+    userRating = workRating?.rating ?? null;
+
+    return NextResponse.json({
+      book: { ...book, workId },
+      userRating,
+    });
   } catch (error) {
     console.error('Book fetch error:', error);
     return NextResponse.json(

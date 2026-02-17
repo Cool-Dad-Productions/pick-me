@@ -16,27 +16,22 @@ export async function DELETE(
 
     const { ratingId } = await params;
 
-    // Find rating and verify ownership
-    const rating = await db.userRating.findUnique({
+    // Find work rating and verify ownership
+    const rating = await db.workRating.findUnique({
       where: { id: ratingId },
+      select: { id: true, userId: true },
     });
 
     if (!rating) {
-      return NextResponse.json(
-        { error: 'Rating not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Rating not found' }, { status: 404 });
     }
 
     if (rating.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: 'Forbidden' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Delete the rating
-    await db.userRating.delete({
+    // Delete the work rating
+    await db.workRating.delete({
       where: { id: ratingId },
     });
 
