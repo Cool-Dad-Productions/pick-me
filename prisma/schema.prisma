@@ -14,6 +14,7 @@ model User {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   ratings      UserRating[]
+  workRatings  WorkRating[]
   imports      ImportBatch[]
 }
 
@@ -38,19 +39,38 @@ model Book {
 }
 
 model UserRating {
-  id            String       @id @default(cuid())
-  userId        String
-  bookId        String
-  rating        Float
-  ratedAt       DateTime?
-  source        String?
-  createdAt     DateTime     @default(now())
-  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  book          Book         @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id])
-  importBatchId String?
+  id                   String       @id @default(cuid())
+  userId               String
+  bookId               String
+  rating               Float
+  ratedAt              DateTime?
+  source               String?
+  createdAt            DateTime     @default(now())
+  migratedToWorkRating Boolean      @default(false)
+  user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book                 Book         @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  importBatch          ImportBatch? @relation(fields: [importBatchId], references: [id])
+  importBatchId        String?
 
   @@unique([userId, bookId])
+}
+
+model WorkRating {
+  id                String    @id @default(cuid())
+  userId            String
+  openLibraryWorkId String
+  rating            Float
+  ratedAt           DateTime?
+  source            String?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, openLibraryWorkId])
+  @@index([userId])
+  @@index([openLibraryWorkId])
 }
 
 model ImportBatch {

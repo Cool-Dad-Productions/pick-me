@@ -136,15 +136,15 @@ model UserRating {
 ```
 
 **Tasks:**
-- [ ] Create `WorkRating` model with unique constraint on `[userId, openLibraryWorkId]`
-- [ ] Add `migratedToWorkRating` flag to `UserRating` for tracking migration
-- [ ] Write migration script:
+- [x] Create `WorkRating` model with unique constraint on `[userId, openLibraryWorkId]`
+- [x] Add `migratedToWorkRating` flag to `UserRating` for tracking migration
+- [x] Write migration script:
   1. For each `UserRating`, lookup book's `openLibraryWorkId`
   2. If workId exists, create/update `WorkRating`
   3. If no workId, generate synthetic ID: `synthetic:${hash(title+authors)}`
   4. Mark `UserRating` as migrated
-- [ ] Handle conflicts: if user rated multiple editions of same work, keep highest rating or most recent
-- [ ] Update User model to add `workRatings` relation
+- [x] Handle conflicts: if user rated multiple editions of same work, keep highest rating or most recent
+- [x] Update User model to add `workRatings` relation
 
 **Files to modify:**
 - `prisma/schema.prisma`
@@ -153,9 +153,9 @@ model UserRating {
 - New file: `scripts/migrate-ratings-to-work.ts`
 
 **Acceptance criteria:**
-- [ ] All existing `UserRating` records have corresponding `WorkRating` records
-- [ ] Duplicate edition ratings for same work are consolidated
-- [ ] `WorkRating` unique constraint prevents duplicate work ratings per user
+- [x] All existing `UserRating` records have corresponding `WorkRating` records
+- [x] Duplicate edition ratings for same work are consolidated
+- [x] `WorkRating` unique constraint prevents duplicate work ratings per user
 
 ---
 
