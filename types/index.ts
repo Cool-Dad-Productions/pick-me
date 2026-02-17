@@ -13,6 +13,10 @@ export interface NormalizedBook {
   subjects: string[];
   coverUrl?: string;
   metadata?: unknown;
+  openLibraryWorkId?: string;
+  pageCount?: number;
+  publicationYear?: number;
+  genres?: string[];
 }
 
 export interface PredictionResult {

@@ -18,17 +18,23 @@ model User {
 }
 
 model Book {
-  id             String       @id @default(cuid())
-  isbn13         String?      @unique
-  title          String
-  authors        String[]
-  subjects       String[]     @default([])
-  coverUrl       String?
-  metadata       Json?
-  lastEnrichedAt DateTime?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  ratings        UserRating[]
+  id                String       @id @default(cuid())
+  isbn13            String?      @unique
+  title             String
+  authors           String[]
+  subjects          String[]     @default([])
+  coverUrl          String?
+  metadata          Json?
+  lastEnrichedAt    DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  ratings           UserRating[]
+  openLibraryWorkId String?
+  pageCount         Int?
+  publicationYear   Int?
+  genres            String[]     @default([])
+
+  @@index([openLibraryWorkId])
 }
 
 model UserRating {

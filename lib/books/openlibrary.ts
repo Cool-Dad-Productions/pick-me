@@ -33,6 +33,7 @@ interface OpenLibraryWorkData {
   subject_places?: string[];
   subject_times?: string[];
   description?: string | { value: string };
+  first_publish_date?: string;
 }
 
 export async function searchBooks(params: {
@@ -121,14 +122,18 @@ export async function lookupByIsbn(isbn: string): Promise<NormalizedBook | null>
   // Fetch author names - try edition authors first, then fall back to work authors
   let authorNames: string[] = [];
   let subjects: string[] = [];
+  let openLibraryWorkId: string | undefined;
+  let publicationYear: number | undefined;
 
   if (data.authors && data.authors.length > 0) {
     authorNames = await fetchAuthorNames(data.authors.map((a) => a.key));
   }
 
-  // Fetch subjects from work
+  // Fetch subjects and work metadata
   if (data.works && data.works.length > 0) {
     const workKey = data.works[0].key;
+    // Extract work ID (e.g., "/works/OL123W" -> "OL123W")
+    openLibraryWorkId = workKey.replace('/works/', '');
 
     // Fetch authors from work if not on edition
     if (authorNames.length === 0) {
@@ -136,9 +141,11 @@ export async function lookupByIsbn(isbn: string): Promise<NormalizedBook | null>
       authorNames = await fetchAuthorsFromWork(workKey);
     }
 
-    // Fetch subjects from work
-    subjects = await fetchWorkSubjects(workKey);
-    console.log(`[OpenLibrary] Fetched ${subjects.length} subjects from work ${workKey}`);
+    // Fetch subjects and publication year from work
+    const workData = await fetchWorkData(workKey);
+    subjects = workData.subjects;
+    publicationYear = workData.publicationYear;
+    console.log(`[OpenLibrary] Fetched ${subjects.length} subjects from work ${workKey}, year: ${publicationYear}`);
   }
 
   const isbn13 = data.isbn_13?.[0] || normalizedIsbn;
@@ -157,6 +164,8 @@ export async function lookupByIsbn(isbn: string): Promise<NormalizedBook | null>
     subjects,
     coverUrl: coverId ? `${COVERS_API}/b/id/${coverId}-M.jpg` : undefined,
     metadata: data,
+    openLibraryWorkId,
+    publicationYear,
   };
 }
 
@@ -201,6 +210,43 @@ async function fetchAuthorsFromWork(workKey: string): Promise<string[]> {
   } catch {
     console.warn(`[OpenLibrary] Failed to fetch work ${workKey}`);
     return [];
+  }
+}
+
+interface WorkDataResult {
+  subjects: string[];
+  publicationYear?: number;
+}
+
+async function fetchWorkData(workKey: string): Promise<WorkDataResult> {
+  try {
+    const url = `${OPEN_LIBRARY_API}${workKey}.json`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.warn(`[OpenLibrary] Failed to fetch work ${workKey}: ${response.status}`);
+      return { subjects: [] };
+    }
+
+    const data: OpenLibraryWorkData = await response.json();
+
+    // Extract subjects
+    const allSubjects = [...(data.subjects || [])];
+    const subjects = normalizeSubjects(allSubjects);
+
+    // Extract publication year from first_publish_date
+    let publicationYear: number | undefined;
+    if (data.first_publish_date) {
+      const yearMatch = data.first_publish_date.match(/\d{4}/);
+      if (yearMatch) {
+        publicationYear = parseInt(yearMatch[0], 10);
+      }
+    }
+
+    return { subjects, publicationYear };
+  } catch (error) {
+    console.warn(`[OpenLibrary] Error fetching work ${workKey}:`, error);
+    return { subjects: [] };
   }
 }
 

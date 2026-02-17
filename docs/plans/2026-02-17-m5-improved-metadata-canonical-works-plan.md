@@ -83,11 +83,11 @@ model Book {
 ```
 
 **Tasks:**
-- [ ] Create migration adding `openLibraryWorkId`, `pageCount`, `publicationYear`, `genres` fields
-- [ ] Add index on `openLibraryWorkId` for efficient lookups
-- [ ] Write backfill script to extract workId from existing `metadata.works[0].key`
-- [ ] Update `NormalizedBook` type in [types/index.ts](types/index.ts)
-- [ ] Update OpenLibrary lookup to return workId as first-class field
+- [x] Create migration adding `openLibraryWorkId`, `pageCount`, `publicationYear`, `genres` fields
+- [x] Add index on `openLibraryWorkId` for efficient lookups
+- [x] Write backfill script to extract workId from existing `metadata.works[0].key`
+- [x] Update `NormalizedBook` type in [types/index.ts](types/index.ts)
+- [x] Update OpenLibrary lookup to return workId as first-class field
 
 **Files to modify:**
 - `prisma/schema.prisma`
@@ -96,9 +96,9 @@ model Book {
 - `lib/books/openlibrary.ts`
 
 **Acceptance criteria:**
-- [ ] All existing books with `metadata.works[0].key` have `openLibraryWorkId` populated
-- [ ] New ISBN lookups store workId directly on Book record
-- [ ] Database index exists on `openLibraryWorkId`
+- [x] All existing books with `metadata.works[0].key` have `openLibraryWorkId` populated
+- [x] New ISBN lookups store workId directly on Book record
+- [x] Database index exists on `openLibraryWorkId`
 
 ---
 
