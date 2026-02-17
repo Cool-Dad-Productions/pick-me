@@ -1,3 +1,4 @@
+import 'server-only';
 import type { BookCandidate, NormalizedBook } from '@/types';
 import { normalizeIsbn } from '@/lib/validations';
 
@@ -282,6 +283,51 @@ function normalizeSubjects(subjects: string[]): string[] {
 
   // Dedupe and limit to 20 subjects
   return [...new Set(filtered)].slice(0, 20);
+}
+
+/**
+ * Lightweight lookup to get only the Open Library work ID for an ISBN.
+ * Used when Google Books is the primary data source but we need the work ID
+ * for work-level rating aggregation.
+ *
+ * @param isbn - ISBN-10 or ISBN-13
+ * @returns The work ID (e.g., "OL123W") or null if not found
+ */
+export async function lookupWorkIdByIsbn(isbn: string): Promise<string | null> {
+  const normalizedIsbn = normalizeIsbn(isbn);
+  if (!normalizedIsbn) {
+    return null;
+  }
+
+  const url = `${OPEN_LIBRARY_API}/isbn/${normalizedIsbn}.json`;
+
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.log(`[OpenLibrary] Work ID lookup: ISBN ${normalizedIsbn} not found`);
+        return null;
+      }
+      console.warn(`[OpenLibrary] Work ID lookup failed: ${response.status}`);
+      return null;
+    }
+
+    const data: OpenLibraryBookData = await response.json();
+
+    if (data.works && data.works.length > 0) {
+      const workKey = data.works[0].key;
+      const workId = workKey.replace('/works/', '');
+      console.log(`[OpenLibrary] Work ID lookup: ISBN ${normalizedIsbn} -> ${workId}`);
+      return workId;
+    }
+
+    console.log(`[OpenLibrary] Work ID lookup: ISBN ${normalizedIsbn} has no work`);
+    return null;
+  } catch (error) {
+    console.warn(`[OpenLibrary] Work ID lookup error:`, error);
+    return null;
+  }
 }
 
 /**
