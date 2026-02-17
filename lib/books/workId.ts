@@ -6,20 +6,15 @@ import { createHash } from 'crypto';
  * Format: synthetic:{12-char-hash}
  *
  * The ID is deterministic based on normalized title and authors.
+ * NOTE: This must match the logic in scripts/migrate-ratings-to-work.ts
  */
 export function generateSyntheticWorkId(
   title: string,
   authors: string[]
 ): string {
-  // Normalize: lowercase, trim, collapse whitespace
-  const normalizedTitle = title.toLowerCase().trim().replace(/\s+/g, ' ');
-  const normalizedAuthors = authors
-    .map((a) => a.toLowerCase().trim().replace(/\s+/g, ' '))
-    .sort()
-    .join('|');
-
-  const input = `${normalizedTitle}|${normalizedAuthors}`;
-  const hash = createHash('md5').update(input).digest('hex').slice(0, 12);
+  // Must match migration script: (title + authors.join(',')).toLowerCase()
+  const normalized = (title + authors.join(',')).toLowerCase();
+  const hash = createHash('md5').update(normalized).digest('hex').slice(0, 12);
   return `synthetic:${hash}`;
 }
 
