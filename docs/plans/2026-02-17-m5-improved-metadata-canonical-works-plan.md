@@ -218,21 +218,21 @@ CSV row: "The Great Gatsby", "F. Scott Fitzgerald", 5, 9780743273565
 ```
 
 **Tasks:**
-- [ ] Update import commit logic to create `WorkRating` instead of `UserRating`
-- [ ] Add workId resolution during import (may require OpenLibrary lookups)
-- [ ] Handle import rows without ISBN: match by title+author, generate synthetic workId
-- [ ] Add import summary showing: "X books imported, Y work ratings created, Z duplicates merged"
-- [ ] Consider rate limiting for OpenLibrary lookups during import
+- [x] Update import commit logic to create `WorkRating` instead of `UserRating`
+- [x] Add workId resolution during import (may require OpenLibrary lookups)
+- [x] Handle import rows without ISBN: match by title+author, generate synthetic workId
+- [x] Add import summary showing: "X books imported, Y work ratings created, Z duplicates merged"
+- [x] Consider rate limiting for OpenLibrary lookups during import
 
 **Files to modify:**
 - `app/api/import/commit/route.ts`
 - `lib/books/openlibrary.ts` (batch lookup helper)
 
 **Acceptance criteria:**
-- [ ] Importing CSV creates `WorkRating` records
-- [ ] Duplicate editions in same import are deduplicated
-- [ ] Import of previously-rated work updates existing rating (or warns user)
-- [ ] Import summary shows deduplication stats
+- [x] Importing CSV creates `WorkRating` records
+- [x] Duplicate editions in same import are deduplicated
+- [x] Import of previously-rated work updates existing rating (or warns user)
+- [x] Import summary shows deduplication stats
 
 ---
 
