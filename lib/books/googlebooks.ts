@@ -9,7 +9,25 @@ export interface GoogleBooksMetadata {
   description: string | null;
 }
 
+/**
+ * Full book data from Google Books for primary lookups.
+ * Used when Google Books is the primary data source.
+ */
+export interface GoogleBooksBook {
+  googleBooksVolumeId: string;
+  isbn13: string | null;
+  title: string;
+  authors: string[];
+  coverUrl: string | null;
+  genres: string[];
+  pageCount: number | null;
+  publishedDate: string | null;
+  description: string | null;
+  publicationYear: number | null;
+}
+
 interface GoogleBooksVolume {
+  id: string;
   volumeInfo: {
     title?: string;
     authors?: string[];
@@ -17,6 +35,13 @@ interface GoogleBooksVolume {
     pageCount?: number;
     publishedDate?: string;
     description?: string;
+    imageLinks?: {
+      smallThumbnail?: string;
+      thumbnail?: string;
+      small?: string;
+      medium?: string;
+      large?: string;
+    };
     industryIdentifiers?: Array<{
       type: string;
       identifier: string;
@@ -146,6 +171,148 @@ export async function lookupByIsbn(
     console.error('[GoogleBooks] Lookup failed:', error);
     return null;
   }
+}
+
+/**
+ * Extract publication year from publishedDate string.
+ * Google Books returns dates in formats like "2023", "2023-05", or "2023-05-15".
+ */
+function extractPublicationYear(publishedDate: string | undefined): number | null {
+  if (!publishedDate) return null;
+  const match = publishedDate.match(/^(\d{4})/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * Extract ISBN-13 from industry identifiers, converting ISBN-10 if needed.
+ */
+function extractIsbn13(
+  identifiers: Array<{ type: string; identifier: string }> | undefined
+): string | null {
+  if (!identifiers) return null;
+
+  // Prefer ISBN-13
+  const isbn13 = identifiers.find((id) => id.type === 'ISBN_13');
+  if (isbn13) return isbn13.identifier;
+
+  // Convert ISBN-10 to ISBN-13 if available
+  const isbn10 = identifiers.find((id) => id.type === 'ISBN_10');
+  if (isbn10) {
+    return convertIsbn10To13(isbn10.identifier);
+  }
+
+  return null;
+}
+
+/**
+ * Convert ISBN-10 to ISBN-13.
+ */
+function convertIsbn10To13(isbn10: string): string {
+  const digits = isbn10.replace(/-/g, '').slice(0, 9);
+  const prefix = '978' + digits;
+
+  // Calculate check digit
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(prefix[i], 10) * (i % 2 === 0 ? 1 : 3);
+  }
+  const checkDigit = (10 - (sum % 10)) % 10;
+
+  return prefix + checkDigit;
+}
+
+/**
+ * Full book lookup from Google Books API.
+ * Returns complete book data suitable for creating a new Book record.
+ * Used as the primary data source for ISBN lookups.
+ */
+export async function lookupBookByIsbn(
+  isbn: string
+): Promise<GoogleBooksBook | null> {
+  if (!checkAndIncrementQuota()) {
+    return null;
+  }
+
+  const normalizedIsbn = isbn.replace(/-/g, '');
+  const params = new URLSearchParams({ q: `isbn:${normalizedIsbn}` });
+
+  if (process.env.GOOGLE_BOOKS_API_KEY) {
+    params.set('key', process.env.GOOGLE_BOOKS_API_KEY);
+  }
+
+  const url = `${GOOGLE_BOOKS_API}/volumes?${params.toString()}`;
+
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      if (response.status === 429) {
+        console.warn('[GoogleBooks] Rate limited by API');
+        return null;
+      }
+      console.error(`[GoogleBooks] API error: ${response.status}`);
+      return null;
+    }
+
+    const data: GoogleBooksSearchResponse = await response.json();
+
+    console.log('[GoogleBooks] Full book lookup:', {
+      isbn: normalizedIsbn,
+      totalItems: data.totalItems,
+    });
+
+    if (!data.items || data.items.length === 0) {
+      return null;
+    }
+
+    const volume = findVolumeByIsbn(data.items, normalizedIsbn);
+    if (!volume) return null;
+
+    const { volumeInfo } = volume;
+
+    // Get cover URL - prefer larger sizes, upgrade HTTP to HTTPS
+    let coverUrl: string | null = null;
+    if (volumeInfo.imageLinks) {
+      const imageUrl =
+        volumeInfo.imageLinks.medium ||
+        volumeInfo.imageLinks.small ||
+        volumeInfo.imageLinks.thumbnail ||
+        volumeInfo.imageLinks.smallThumbnail;
+      if (imageUrl) {
+        coverUrl = imageUrl.replace('http://', 'https://');
+      }
+    }
+
+    return {
+      googleBooksVolumeId: volume.id,
+      isbn13: extractIsbn13(volumeInfo.industryIdentifiers),
+      title: volumeInfo.title || 'Unknown Title',
+      authors: volumeInfo.authors || [],
+      coverUrl,
+      genres: normalizeCategories(volumeInfo.categories),
+      pageCount: volumeInfo.pageCount ?? null,
+      publishedDate: volumeInfo.publishedDate ?? null,
+      description: volumeInfo.description ?? null,
+      publicationYear: extractPublicationYear(volumeInfo.publishedDate),
+    };
+  } catch (error) {
+    console.error('[GoogleBooks] Full book lookup failed:', error);
+    return null;
+  }
+}
+
+/**
+ * Check if Google Books quota is available.
+ * Returns true if quota is available, false if exhausted.
+ */
+export function isQuotaAvailable(): boolean {
+  const today = new Date().toISOString().split('T')[0];
+  if (today !== lastResetDate) {
+    return true; // New day, quota resets
+  }
+
+  const limit = process.env.GOOGLE_BOOKS_API_KEY ? 1000 : 100;
+  return dailyRequestCount < limit;
 }
 
 export async function lookupByTitle(
