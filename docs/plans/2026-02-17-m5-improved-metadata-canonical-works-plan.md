@@ -364,11 +364,11 @@ function bucketYear(year: number | null): string {
 ```
 
 **Tasks:**
-- [ ] Update `BookDocument` interface to include genres, pageCount, publicationYear
-- [ ] Update `bookToText()` with bucketed features
-- [ ] Update `buildCorpus()` to fetch enriched book data
-- [ ] Consider feature weighting adjustments based on testing
-- [ ] Update prediction rationale to explain genre/length/era matches
+- [x] Update `BookDocument` interface to include genres, pageCount, publicationYear
+- [x] Update `bookToText()` with bucketed features
+- [x] Update `buildCorpus()` to fetch enriched book data
+- [x] Consider feature weighting adjustments based on testing
+- [x] Update prediction rationale to explain genre/length/era matches
 
 **Files to modify:**
 - `lib/prediction/tfidf.ts`
@@ -376,10 +376,10 @@ function bucketYear(year: number | null): string {
 - `lib/prediction/predictor.ts`
 
 **Acceptance criteria:**
-- [ ] Predictions consider genre similarity
-- [ ] Books of similar length are weighted slightly higher
-- [ ] Era similarity contributes to predictions
-- [ ] Rationale explains which new features contributed
+- [x] Predictions consider genre similarity
+- [x] Books of similar length are weighted slightly higher
+- [x] Era similarity contributes to predictions
+- [x] Rationale explains which new features contributed
 
 ---
 

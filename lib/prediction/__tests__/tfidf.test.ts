@@ -12,18 +12,27 @@ describe('TfIdfVectorizer', () => {
       title: 'Fantasy Magic Adventure',
       authors: ['Author A'],
       subjects: ['fantasy', 'magic'],
+      genres: ['Fantasy', 'Adventure'],
+      pageCount: 350,
+      publicationYear: 2015,
     },
     {
       id: '2',
       title: 'Fantasy Dragons Quest',
       authors: ['Author B'],
       subjects: ['fantasy', 'dragons'],
+      genres: ['Fantasy', 'Epic'],
+      pageCount: 500,
+      publicationYear: 2018,
     },
     {
       id: '3',
       title: 'Science Robot Future',
       authors: ['Author C'],
       subjects: ['science fiction', 'robots'],
+      genres: ['Science Fiction', 'Technology'],
+      pageCount: 280,
+      publicationYear: 1985,
     },
   ];
 
@@ -73,11 +82,11 @@ describe('TfIdfVectorizer', () => {
       vectorizer.fit(books);
       const vector = vectorizer.transform(books[0]);
 
-      // 'magic' appears in 1 doc, 'fantasy' in 2 - magic should have higher weight
-      // Both terms exist in vector
-      expect(vector['magic']).toBeDefined();
-      expect(vector['fantasy']).toBeDefined();
-      expect(vector['magic']).toBeGreaterThan(vector['fantasy']);
+      // 'adventure' appears only in book 1, 'contemporary_era' appears in 2 of 3 docs
+      // Adventure should have higher weight as it's more rare
+      expect(vector['adventure']).toBeDefined();
+      expect(vector['contemporary_era']).toBeDefined();
+      expect(vector['adventure']).toBeGreaterThan(vector['contemporary_era']);
     });
 
     it('throws if transform called before fit', () => {
@@ -93,6 +102,9 @@ describe('TfIdfVectorizer', () => {
         title: 'Completely Different',
         authors: ['Unknown'],
         subjects: ['unrelated', 'topics'],
+        genres: ['Unique Genre'],
+        pageCount: 100,
+        publicationYear: 1920,
       };
       const vector = vectorizer.transform(newBook);
       // Should return a vector (possibly sparse/empty for unknown terms)

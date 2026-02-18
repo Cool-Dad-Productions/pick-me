@@ -10,6 +10,9 @@ export interface BookDocument {
   title: string;
   authors: string[];
   subjects: string[];
+  genres: string[];
+  pageCount: number | null;
+  publicationYear: number | null;
 }
 
 /**
