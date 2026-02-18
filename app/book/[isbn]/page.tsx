@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Calendar,
   Pencil,
+  Library,
 } from "lucide-react"
 
 // API book type
@@ -27,11 +28,14 @@ interface ApiBook {
   title: string
   authors: string[]
   coverUrl?: string
+  openLibraryWorkId?: string
+  workId?: string // Included in API response
 }
 
-// User rating type
+// User rating type (from API response after saving)
 interface UserRatingData {
   id: string
+  workId: string
   rating: number
   ratedAt: string
   source: string
@@ -90,20 +94,21 @@ export default function BookDetailPage({
           return
         }
 
-        const { book: bookData } = (await res.json()) as { book: ApiBook }
+        const { book: bookData, userRating: existingRating } = (await res.json()) as {
+          book: ApiBook
+          userRating: number | null
+        }
         setBook(bookData)
 
-        // Fetch user's rating for this book
-        try {
-          const ratingRes = await fetch(`/api/ratings?bookId=${bookData.id}`)
-          if (ratingRes.ok) {
-            const { ratings } = await ratingRes.json()
-            if (ratings && ratings.length > 0) {
-              setUserRating(ratings[0])
-            }
-          }
-        } catch {
-          // Rating fetch failed, not critical
+        // Set user's work-level rating if exists (returned from API)
+        if (existingRating !== null) {
+          setUserRating({
+            id: "existing", // Will be updated on next save
+            workId: bookData.workId ?? bookData.openLibraryWorkId ?? "",
+            rating: existingRating,
+            ratedAt: new Date().toISOString(), // Approximate, exact date not returned
+            source: "existing",
+          })
         }
       } catch {
         setError("Network error. Please try again.")
@@ -128,6 +133,7 @@ export default function BookDetailPage({
       const previousRating = userRating
       setUserRating({
         id: userRating?.id ?? "temp",
+        workId: userRating?.workId ?? book.workId ?? "temp",
         rating: newRating,
         ratedAt: new Date().toISOString(),
         source: "manual",
@@ -344,6 +350,10 @@ export default function BookDetailPage({
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   )}
                 </div>
+                <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Library className="h-3 w-3" />
+                  This rating applies to all editions of this work
+                </p>
                 {isEditingRating && (
                   <Button
                     variant="ghost"

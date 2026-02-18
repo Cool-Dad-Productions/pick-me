@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef, type FormEvent } from "react"
+import { useState, useCallback, useRef, useEffect, type FormEvent } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
@@ -11,7 +11,7 @@ import { Search, Hash, Loader2, BookX, AlertCircle } from "lucide-react"
 
 // API response types
 interface BookCandidate {
-  externalId: string
+  externalId: string // This is the Open Library work key (e.g., /works/OL123W)
   title: string
   authors: string[]
   isbn13?: string
@@ -24,18 +24,51 @@ interface ApiBook {
   title: string
   authors: string[]
   coverUrl?: string
+  openLibraryWorkId?: string
+}
+
+// Extended Book type with workId for rating lookup
+interface SearchResultBook extends Book {
+  workId?: string
+}
+
+// Work rating from API
+interface WorkRatingItem {
+  workId: string
+  rating: number
 }
 
 export default function SearchPage() {
   const [mode, setMode] = useState<"title" | "isbn">("title")
   const [query, setQuery] = useState("")
-  const [results, setResults] = useState<Book[]>([])
+  const [results, setResults] = useState<SearchResultBook[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [scannerOpen, setScannerOpen] = useState(false)
+  const [userRatings, setUserRatings] = useState<Map<string, number>>(new Map())
 
   const isbnInputRef = useRef<HTMLInputElement>(null)
+
+  // Fetch user's work ratings to show on search results
+  useEffect(() => {
+    async function fetchUserRatings() {
+      try {
+        const res = await fetch("/api/ratings?limit=1000")
+        if (res.ok) {
+          const { ratings } = await res.json() as { ratings: WorkRatingItem[] }
+          const ratingsMap = new Map<string, number>()
+          for (const r of ratings) {
+            ratingsMap.set(r.workId, r.rating)
+          }
+          setUserRatings(ratingsMap)
+        }
+      } catch {
+        // Silently fail - rating badges just won't show
+      }
+    }
+    fetchUserRatings()
+  }, [])
 
   const handleSearch = useCallback(
     async (e: FormEvent) => {
@@ -73,12 +106,17 @@ export default function SearchPage() {
             return
           }
 
-          const { book } = await res.json() as { book: ApiBook }
+          const { book, userRating } = await res.json() as { book: ApiBook; userRating: number | null }
+          // Update local ratings map if user has rated this book
+          if (userRating !== null && book.openLibraryWorkId) {
+            setUserRatings(prev => new Map(prev).set(book.openLibraryWorkId!, userRating))
+          }
           setResults([{
             isbn: book.isbn13,
             title: book.title,
             authors: book.authors,
             coverUrl: book.coverUrl || "",
+            workId: book.openLibraryWorkId,
           }])
         } else {
           const res = await fetch(`/api/books/search?q=${encodeURIComponent(query.trim())}`)
@@ -97,14 +135,16 @@ export default function SearchPage() {
 
           const { results: candidates } = await res.json() as { results: BookCandidate[] }
 
-          // Filter to only books with ISBN and transform to Book type
-          const books: Book[] = candidates
+          // Filter to only books with ISBN and transform to SearchResultBook type
+          const books: SearchResultBook[] = candidates
             .filter((c) => c.isbn13)
             .map((c) => ({
               isbn: c.isbn13!,
               title: c.title,
               authors: c.authors,
               coverUrl: c.coverUrl || "",
+              // externalId is the Open Library work key (e.g., /works/OL123W)
+              workId: c.externalId,
             }))
 
           setResults(books)
@@ -240,7 +280,11 @@ export default function SearchPage() {
             </p>
             <div className="grid gap-6 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {results.map((book) => (
-                <BookCard key={book.isbn} book={book} />
+                <BookCard
+                  key={book.isbn}
+                  book={book}
+                  userRating={book.workId ? userRatings.get(book.workId) : undefined}
+                />
               ))}
             </div>
           </>
