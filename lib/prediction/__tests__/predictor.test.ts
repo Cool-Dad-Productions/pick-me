@@ -83,24 +83,32 @@ describe('predictRating', () => {
   const createBook = (
     id: string,
     title: string,
-    subjects: string[]
+    subjects: string[],
+    options?: { genres?: string[]; pageCount?: number | null; publicationYear?: number | null }
   ): BookDocument => ({
     id,
     title,
     authors: ['Author'],
     subjects,
+    genres: options?.genres ?? [],
+    pageCount: options?.pageCount ?? null,
+    publicationYear: options?.publicationYear ?? null,
   });
 
   const createRatedBook = (
     id: string,
     title: string,
     subjects: string[],
-    rating: number
+    rating: number,
+    options?: { genres?: string[]; pageCount?: number | null; publicationYear?: number | null }
   ): RatedBook => ({
     id,
     title,
     authors: ['Author'],
     subjects,
+    genres: options?.genres ?? [],
+    pageCount: options?.pageCount ?? null,
+    publicationYear: options?.publicationYear ?? null,
     rating,
   });
 

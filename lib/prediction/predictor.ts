@@ -6,7 +6,6 @@ import {
   getMatchingTerms,
   MIN_SIMILARITY_THRESHOLD,
 } from './index';
-import { log } from 'console';
 
 // ============================================================================
 // Configurable Constants
@@ -37,6 +36,9 @@ export interface RatedBook {
   title: string;
   authors: string[];
   subjects: string[];
+  genres: string[];
+  pageCount: number | null;
+  publicationYear: number | null;
   rating: number;
 }
 
@@ -154,6 +156,9 @@ export function predictRating(input: PredictionInput): PredictionOutput {
     title: book.title,
     authors: book.authors,
     subjects: book.subjects,
+    genres: book.genres,
+    pageCount: book.pageCount,
+    publicationYear: book.publicationYear,
   }));
 
   // Build corpus including target book and all rated books

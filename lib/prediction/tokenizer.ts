@@ -54,19 +54,47 @@ export function tokenize(text: string): string[] {
 }
 
 /**
+ * Bucket page count into length categories
+ * <200 = short, 200-399 = medium, >=400 = long
+ */
+export function bucketPageCount(pages: number | null): string {
+  if (!pages || pages <= 0) return '';
+  if (pages < 200) return 'short_book';
+  if (pages < 400) return 'medium_book';
+  return 'long_book';
+}
+
+/**
+ * Bucket publication year into era categories
+ * <1950 = classic, 1950-1999 = modern, >=2000 = contemporary
+ */
+export function bucketYear(year: number | null): string {
+  if (!year || year <= 0) return '';
+  if (year < 1950) return 'classic_era';
+  if (year < 2000) return 'modern_era';
+  return 'contemporary_era';
+}
+
+/**
  * Create document text from book data
- * Combines title, authors, and subjects into single text
- * Title is weighted 2x by repetition
+ * Combines title, authors, subjects, genres, and bucket tokens
+ * Title and genres weighted 2x by repetition
  */
 export function bookToText(book: {
   title: string;
   authors: string[];
   subjects: string[];
+  genres: string[];
+  pageCount: number | null;
+  publicationYear: number | null;
 }): string {
   const titleText = book.title;
   const authorText = book.authors.join(' ');
   const subjectText = book.subjects.join(' ');
+  const genreText = book.genres.join(' ');
+  const lengthBucket = bucketPageCount(book.pageCount);
+  const eraBucket = bucketYear(book.publicationYear);
 
-  // Weight title more heavily by repeating
-  return `${titleText} ${titleText} ${authorText} ${subjectText}`;
+  // Weight: title 2x, genres 2x, subjects 1x, authors 1x, buckets 1x
+  return `${titleText} ${titleText} ${authorText} ${subjectText} ${genreText} ${genreText} ${lengthBucket} ${eraBucket}`;
 }

@@ -26,9 +26,18 @@ export async function POST(request: Request) {
 
     const { bookId } = result.data;
 
-    // Verify book exists
+    // Verify book exists and fetch with enriched fields
     const book = await db.book.findUnique({
       where: { id: bookId },
+      select: {
+        id: true,
+        title: true,
+        authors: true,
+        subjects: true,
+        genres: true,
+        pageCount: true,
+        publicationYear: true,
+      },
     });
 
     if (!book) {
@@ -63,6 +72,9 @@ export async function POST(request: Request) {
       title: book.title,
       authors: book.authors,
       subjects: book.subjects,
+      genres: book.genres,
+      pageCount: book.pageCount,
+      publicationYear: book.publicationYear,
     };
 
     // Fetch user's work-level ratings
@@ -79,6 +91,9 @@ export async function POST(request: Request) {
         title: true,
         authors: true,
         subjects: true,
+        genres: true,
+        pageCount: true,
+        publicationYear: true,
         openLibraryWorkId: true,
       },
     });
@@ -101,6 +116,9 @@ export async function POST(request: Request) {
           title: b.title,
           authors: b.authors,
           subjects: b.subjects,
+          genres: b.genres,
+          pageCount: b.pageCount,
+          publicationYear: b.publicationYear,
           rating: wr.rating,
         };
       })
