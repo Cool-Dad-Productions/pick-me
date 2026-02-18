@@ -395,22 +395,24 @@ function bucketYear(year: number | null): string {
 4. **My ratings page**: List by work, not by edition
 
 **Tasks:**
-- [ ] Update book detail page to fetch/display work-level rating
-- [ ] Add subtle indicator that rating is work-level (tooltip or small text)
-- [ ] Update search results to show rated status by workId
-- [ ] Create/update "My Ratings" page to list work ratings with representative edition
-- [ ] Handle edge case: book without workId still shows edition-level rating
+- [x] Update book detail page to fetch/display work-level rating
+- [x] Add subtle indicator that rating is work-level (tooltip or small text)
+- [x] Update search results to show rated status by workId
+- [x] Create/update "My Ratings" page to list work ratings with representative edition
+- [x] Handle edge case: book without workId still shows edition-level rating
 
 **Files to modify:**
-- `app/books/[bookId]/page.tsx`
-- `components/RatingInput.tsx` (or similar)
+- `app/book/[isbn]/page.tsx`
+- `components/rating-input.tsx`
+- `components/book-card.tsx`
 - `app/search/page.tsx`
-- `app/ratings/page.tsx` (create if doesn't exist)
+- `app/ratings/page.tsx`
+- `app/api/books/isbn/[isbn]/route.ts`
 
 **Acceptance criteria:**
-- [ ] User sees same rating on all editions of a work
-- [ ] Clear indication that ratings are work-level
-- [ ] My Ratings shows deduplicated list
+- [x] User sees same rating on all editions of a work
+- [x] Clear indication that ratings are work-level
+- [x] My Ratings shows deduplicated list
 
 ---
 

@@ -4,12 +4,14 @@ import Link from "next/link"
 import Image from "next/image"
 import type { Book } from "@/lib/types"
 import { Badge } from "@/components/ui/badge"
+import { Star } from "lucide-react"
 
 interface BookCardProps {
   book: Book
+  userRating?: number | null
 }
 
-export function BookCard({ book }: BookCardProps) {
+export function BookCard({ book, userRating }: BookCardProps) {
   return (
     <Link
       href={`/book/${book.isbn}`}
@@ -23,6 +25,13 @@ export function BookCard({ book }: BookCardProps) {
           className="object-cover transition-transform duration-300 group-hover:scale-105"
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
         />
+        {/* Rated indicator badge */}
+        {userRating != null && (
+          <div className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-primary/90 px-2 py-1 text-xs font-medium text-primary-foreground shadow-md">
+            <Star className="h-3 w-3 fill-current" />
+            {userRating.toFixed(1)}
+          </div>
+        )}
       </div>
       <div className="flex flex-1 flex-col gap-2 p-4">
         <h3 className="line-clamp-2 font-serif text-base font-semibold leading-snug text-foreground group-hover:text-primary">

@@ -1,3 +1,4 @@
+import 'server-only';
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import type { Prisma } from '@prisma/client';
@@ -13,7 +14,7 @@ import {
 } from '@/lib/books/googlebooks';
 import { normalizeIsbn } from '@/lib/validations';
 import { needsEnrichment, enrichBook } from '@/lib/books/enrichment';
-import { generateSyntheticWorkId } from '@/lib/books/workId';
+import { generateSyntheticWorkId, getWorkIdForBook } from '@/lib/books/workId';
 
 export async function GET(
   _request: Request,
@@ -51,7 +52,10 @@ export async function GET(
           });
         }
       }
-      return NextResponse.json({ book });
+
+      // Lookup user's work-level rating
+      const userRating = await getUserWorkRating(session.user.id, book);
+      return NextResponse.json({ book, userRating });
     }
 
     // NEW: Google Books as primary source (with Open Library fallback)
@@ -61,7 +65,9 @@ export async function GET(
       return NextResponse.json({ error: 'Book not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ book });
+    // Lookup user's work-level rating (may be null for new books)
+    const userRating = await getUserWorkRating(session.user.id, book);
+    return NextResponse.json({ book, userRating });
   } catch (error) {
     console.error('ISBN lookup error:', error);
     return NextResponse.json({ error: 'Lookup failed' }, { status: 500 });
@@ -201,4 +207,28 @@ async function lookupAndCreateBook(isbn: string) {
   }
 
   return book;
+}
+
+/**
+ * Lookup user's work-level rating for a book.
+ */
+async function getUserWorkRating(
+  userId: string,
+  book: { openLibraryWorkId: string | null; title: string; authors: string[] } | null
+): Promise<number | null> {
+  if (!book) return null;
+
+  const workId = getWorkIdForBook(book);
+
+  const workRating = await db.workRating.findUnique({
+    where: {
+      userId_openLibraryWorkId: {
+        userId,
+        openLibraryWorkId: workId,
+      },
+    },
+    select: { rating: true },
+  });
+
+  return workRating?.rating ?? null;
 }

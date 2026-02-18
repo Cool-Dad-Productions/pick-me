@@ -30,6 +30,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar,
+  Library,
 } from "lucide-react"
 
 interface RatingWithBook {
@@ -183,9 +184,13 @@ export default function RatingsPage() {
           </h1>
           {pagination && (
             <p className="mt-1 text-muted-foreground">
-              {pagination.total} {pagination.total === 1 ? "book" : "books"} rated
+              {pagination.total} {pagination.total === 1 ? "work" : "works"} rated
             </p>
           )}
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Library className="h-3 w-3" />
+            Ratings apply to all editions of each work
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
