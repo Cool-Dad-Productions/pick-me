@@ -54,7 +54,7 @@ export default function SearchPage() {
   useEffect(() => {
     async function fetchUserRatings() {
       try {
-        const res = await fetch("/api/ratings?limit=1000")
+        const res = await fetch("/api/ratings?limit=100")
         if (res.ok) {
           const { ratings } = await res.json() as { ratings: WorkRatingItem[] }
           const ratingsMap = new Map<string, number>()
