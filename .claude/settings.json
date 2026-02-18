@@ -1,5 +1,10 @@
 {
   "enabledPlugins": {
     "compound-engineering@every-marketplace": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)"
+    ]
   }
 }
