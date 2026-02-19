@@ -89,14 +89,24 @@ function normalizeCategories(categories: string[] | undefined): string[] {
 
   const normalized = new Set<string>();
   for (const category of categories) {
-    // Split hierarchical categories like "Fiction / Literary"
+    // Normalize the full hierarchical path (e.g., "Humor / Form / Essays")
+    const fullPath = category
+      .split(' / ')
+      .map((p) => p.toLowerCase().trim())
+      .filter((p) => p.length > 1)
+      .join(' / ');
+    if (fullPath) {
+      normalized.add(fullPath);
+    }
+
+    // Also extract individual terms for broad matching
     const parts = category.split(' / ').map((p) => p.toLowerCase().trim());
     parts.forEach((p) => {
       if (p && p.length > 1) normalized.add(p);
     });
   }
 
-  return Array.from(normalized).slice(0, 20);
+  return Array.from(normalized).slice(0, 30);
 }
 
 function findVolumeByIsbn(
