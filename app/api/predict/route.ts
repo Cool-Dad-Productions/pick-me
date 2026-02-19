@@ -88,6 +88,7 @@ export async function POST(request: Request) {
       where: { openLibraryWorkId: { in: workIds } },
       select: {
         id: true,
+        isbn13: true,
         title: true,
         authors: true,
         subjects: true,
@@ -113,6 +114,7 @@ export async function POST(request: Request) {
         if (!b) return null;
         return {
           id: b.id,
+          isbn13: b.isbn13,
           title: b.title,
           authors: b.authors,
           subjects: b.subjects,
@@ -157,6 +159,7 @@ export async function POST(request: Request) {
           data: {
             similarBooks: predictionResult.similarBooks.map(sb => ({
               id: sb.id,
+              isbn13: sb.isbn13,
               title: sb.title,
               authors: sb.authors,
               yourRating: sb.rating,

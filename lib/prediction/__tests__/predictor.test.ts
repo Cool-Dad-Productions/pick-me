@@ -100,9 +100,10 @@ describe('predictRating', () => {
     title: string,
     subjects: string[],
     rating: number,
-    options?: { genres?: string[]; pageCount?: number | null; publicationYear?: number | null }
+    options?: { genres?: string[]; pageCount?: number | null; publicationYear?: number | null; isbn13?: string | null }
   ): RatedBook => ({
     id,
+    isbn13: options?.isbn13 ?? null,
     title,
     authors: ['Author'],
     subjects,
