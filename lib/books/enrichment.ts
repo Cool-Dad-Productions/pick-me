@@ -121,6 +121,11 @@ export async function enrichBook(
       if (gbData) {
         result.sources.googleBooks = true;
 
+        // Store Google Books Volume ID if not already set
+        if (!book.googleBooksVolumeId || force) {
+          updates.googleBooksVolumeId = gbData.googleBooksVolumeId;
+        }
+
         if (gbData.genres.length > 0 && (needsGenres || force)) {
           updates.genres = gbData.genres;
           result.genresAdded = gbData.genres.length;

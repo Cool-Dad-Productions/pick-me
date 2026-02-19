@@ -3,6 +3,7 @@ import 'server-only';
 const GOOGLE_BOOKS_API = 'https://www.googleapis.com/books/v1';
 
 export interface GoogleBooksMetadata {
+  googleBooksVolumeId: string;
   genres: string[];
   pageCount: number | null;
   publishedDate: string | null;
@@ -186,6 +187,7 @@ export async function lookupByIsbn(
     }
 
     return {
+      googleBooksVolumeId: volume.id,
       genres: normalizeCategories(volumeInfo.categories),
       pageCount: volumeInfo.pageCount ?? null,
       publishedDate: volumeInfo.publishedDate ?? null,
@@ -398,6 +400,7 @@ export async function lookupByTitle(
     }
 
     return {
+      googleBooksVolumeId: data.items[0].id,
       genres: normalizeCategories(volumeInfo.categories),
       pageCount: volumeInfo.pageCount ?? null,
       publishedDate: volumeInfo.publishedDate ?? null,
