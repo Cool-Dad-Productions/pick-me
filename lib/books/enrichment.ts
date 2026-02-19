@@ -10,6 +10,7 @@ export interface EnrichmentResult {
   subjectsAdded: number;
   genresAdded: number;
   pageCountSet: boolean;
+  coverUrlSet: boolean;
   sources: {
     openLibrary: boolean;
     googleBooks: boolean;
@@ -41,6 +42,7 @@ export async function enrichBook(
     subjectsAdded: 0,
     genresAdded: 0,
     pageCountSet: false,
+    coverUrlSet: false,
     sources: { openLibrary: false, googleBooks: false },
   };
 
@@ -57,11 +59,13 @@ export async function enrichBook(
   const needsSubjects = book.subjects.length === 0;
   const needsGenres = book.genres.length === 0;
   const needsPageCount = book.pageCount === null;
+  const needsCoverUrl = book.coverUrl === null;
 
   console.log(`[Enrichment] Book ${bookId} needs:`, {
     needsSubjects,
     needsGenres,
     needsPageCount,
+    needsCoverUrl,
     hasIsbn: !!book.isbn13,
     isbn: book.isbn13,
     currentGenres: book.genres,
@@ -69,7 +73,7 @@ export async function enrichBook(
   });
 
   // Skip if nothing to do (unless force)
-  if (!force && !needsSubjects && !needsGenres && !needsPageCount) {
+  if (!force && !needsSubjects && !needsGenres && !needsPageCount && !needsCoverUrl) {
     console.log(`[Enrichment] Book ${bookId} already enriched, skipping`);
     result.success = true;
     return result;
@@ -97,12 +101,14 @@ export async function enrichBook(
     }
   }
 
-  // 2. Google Books enrichment for genres and page count
-  const shouldCallGoogleBooks = (needsGenres || needsPageCount || force) && book.isbn13;
+  // 2. Google Books enrichment for genres, page count, and cover URL
+  const shouldCallGoogleBooks =
+    (needsGenres || needsPageCount || needsCoverUrl || force) && book.isbn13;
   console.log(`[Enrichment] Google Books check:`, {
     shouldCall: shouldCallGoogleBooks,
     needsGenres,
     needsPageCount,
+    needsCoverUrl,
     force,
     hasIsbn: !!book.isbn13,
   });
@@ -123,6 +129,11 @@ export async function enrichBook(
         if (gbData.pageCount && (needsPageCount || force)) {
           updates.pageCount = gbData.pageCount;
           result.pageCountSet = true;
+        }
+
+        if (gbData.coverUrl && (needsCoverUrl || force)) {
+          updates.coverUrl = gbData.coverUrl;
+          result.coverUrlSet = true;
         }
 
         // Use Google Books publication year if not already set
@@ -151,6 +162,7 @@ export async function enrichBook(
       subjectsAdded: result.subjectsAdded,
       genresAdded: result.genresAdded,
       pageCountSet: result.pageCountSet,
+      coverUrlSet: result.coverUrlSet,
     });
   }
 
@@ -168,13 +180,14 @@ export async function enrichAllBooks(options?: {
 }): Promise<BatchEnrichmentStats> {
   const { batchSize = 50, delayMs = 1000 } = options || {};
 
-  // Find books that need enrichment (missing subjects, genres, or page count)
+  // Find books that need enrichment (missing subjects, genres, page count, or cover URL)
   const books = await db.book.findMany({
     where: {
       OR: [
         { subjects: { isEmpty: true } },
         { genres: { isEmpty: true } },
         { pageCount: null },
+        { coverUrl: null },
       ],
       NOT: { metadata: { equals: Prisma.JsonNull } },
     },
@@ -193,7 +206,10 @@ export async function enrichAllBooks(options?: {
 
     if (result.success) {
       const anyEnriched =
-        result.subjectsAdded > 0 || result.genresAdded > 0 || result.pageCountSet;
+        result.subjectsAdded > 0 ||
+        result.genresAdded > 0 ||
+        result.pageCountSet ||
+        result.coverUrlSet;
       if (anyEnriched) {
         enriched++;
       } else {
@@ -226,6 +242,7 @@ export async function enrichAllBooks(options?: {
     highSubjectCoverage: results.filter((r) => r.subjectsAdded >= 10).length,
     withGenres: results.filter((r) => r.genresAdded > 0).length,
     withPageCount: results.filter((r) => r.pageCountSet).length,
+    withCoverUrl: results.filter((r) => r.coverUrlSet).length,
   });
 
   return stats;
@@ -233,12 +250,13 @@ export async function enrichAllBooks(options?: {
 
 /**
  * Check if a book needs enrichment.
- * Returns true if the book is missing subjects (with work key), genres, or page count (with ISBN).
+ * Returns true if the book is missing subjects (with work key), genres, page count, or cover URL (with ISBN).
  */
 export function needsEnrichment(book: {
   subjects: string[];
   genres: string[];
   pageCount: number | null;
+  coverUrl: string | null;
   isbn13: string | null;
   metadata: unknown;
   lastEnrichedAt: Date | null;
@@ -248,10 +266,11 @@ export function needsEnrichment(book: {
   const hasWorkKey = Boolean(metadata?.works?.[0]?.key);
   const needsSubjects = book.subjects.length === 0 && hasWorkKey;
 
-  // Check if missing genres/pageCount and has ISBN for Google Books
+  // Check if missing genres/pageCount/coverUrl and has ISBN for Google Books
   const hasIsbn = Boolean(book.isbn13);
   const needsGenres = book.genres.length === 0 && hasIsbn;
   const needsPageCount = book.pageCount === null && hasIsbn;
+  const needsCoverUrl = book.coverUrl === null && hasIsbn;
 
-  return needsSubjects || needsGenres || needsPageCount;
+  return needsSubjects || needsGenres || needsPageCount || needsCoverUrl;
 }

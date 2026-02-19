@@ -7,6 +7,7 @@ export interface GoogleBooksMetadata {
   pageCount: number | null;
   publishedDate: string | null;
   description: string | null;
+  coverUrl: string | null;
 }
 
 /**
@@ -171,11 +172,25 @@ export async function lookupByIsbn(
 
     const { volumeInfo } = volume;
 
+    // Get cover URL - prefer larger sizes, upgrade HTTP to HTTPS
+    let coverUrl: string | null = null;
+    if (volumeInfo.imageLinks) {
+      const imageUrl =
+        volumeInfo.imageLinks.medium ||
+        volumeInfo.imageLinks.small ||
+        volumeInfo.imageLinks.thumbnail ||
+        volumeInfo.imageLinks.smallThumbnail;
+      if (imageUrl) {
+        coverUrl = imageUrl.replace('http://', 'https://');
+      }
+    }
+
     return {
       genres: normalizeCategories(volumeInfo.categories),
       pageCount: volumeInfo.pageCount ?? null,
       publishedDate: volumeInfo.publishedDate ?? null,
       description: volumeInfo.description ?? null,
+      coverUrl,
     };
   } catch (error) {
     console.error('[GoogleBooks] Lookup failed:', error);
@@ -369,11 +384,25 @@ export async function lookupByTitle(
     // Take first result for title search
     const { volumeInfo } = data.items[0];
 
+    // Get cover URL - prefer larger sizes, upgrade HTTP to HTTPS
+    let coverUrl: string | null = null;
+    if (volumeInfo.imageLinks) {
+      const imageUrl =
+        volumeInfo.imageLinks.medium ||
+        volumeInfo.imageLinks.small ||
+        volumeInfo.imageLinks.thumbnail ||
+        volumeInfo.imageLinks.smallThumbnail;
+      if (imageUrl) {
+        coverUrl = imageUrl.replace('http://', 'https://');
+      }
+    }
+
     return {
       genres: normalizeCategories(volumeInfo.categories),
       pageCount: volumeInfo.pageCount ?? null,
       publishedDate: volumeInfo.publishedDate ?? null,
       description: volumeInfo.description ?? null,
+      coverUrl,
     };
   } catch (error) {
     console.error('[GoogleBooks] Title lookup failed:', error);
