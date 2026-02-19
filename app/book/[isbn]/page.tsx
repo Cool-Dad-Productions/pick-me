@@ -344,7 +344,7 @@ export default function BookDetailPage({
             <Badge variant="secondary" className="font-mono text-xs">
               ISBN: {book.isbn13}
             </Badge>
-            {book.pageCount && (
+            {!!book.pageCount && (
               <Badge variant="outline" className="text-xs">
                 {book.pageCount} pages
               </Badge>
@@ -426,9 +426,8 @@ export default function BookDetailPage({
                       </div>
                     </div>
                   )}
-
                   {/* Page Count */}
-                  {book.pageCount && (
+                  {!!book.pageCount && (
                     <div className="flex items-start gap-2">
                       <BookOpen className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
                       <div>
