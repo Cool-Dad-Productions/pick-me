@@ -233,7 +233,7 @@ export default function BookDetailPage({
       const res = await fetch("/api/books/enrich", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookId: book.id }),
+        body: JSON.stringify({ bookId: book.id, force: true }),
       })
 
       if (!res.ok) {
@@ -366,7 +366,7 @@ export default function BookDetailPage({
               <CollapsibleTrigger asChild>
                 <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
                   <Database className="h-4 w-4" />
-                  Book Data Sources
+                  Book Details
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${isEnrichmentOpen ? "rotate-180" : ""}`}
                   />
@@ -404,7 +404,6 @@ export default function BookDetailPage({
                           {book.openLibraryWorkId}
                           <ExternalLink className="h-3 w-3" />
                         </a>
-                        <p className="text-xs text-muted-foreground">Source: subjects</p>
                       </div>
                     </div>
                   )}
@@ -424,7 +423,6 @@ export default function BookDetailPage({
                           {book.googleBooksVolumeId}
                           <ExternalLink className="h-3 w-3" />
                         </a>
-                        <p className="text-xs text-muted-foreground">Source: genres, page count</p>
                       </div>
                     </div>
                   )}
