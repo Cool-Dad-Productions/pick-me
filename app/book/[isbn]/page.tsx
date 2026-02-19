@@ -19,9 +19,21 @@ import {
   Calendar,
   Pencil,
   Library,
+  ChevronDown,
+  Database,
+  RefreshCw,
+  ExternalLink,
+  BookOpen,
+  Tag,
+  Hash,
 } from "lucide-react"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 
-// API book type
+// API book type with all enriched fields
 interface ApiBook {
   id: string
   isbn13: string
@@ -30,6 +42,13 @@ interface ApiBook {
   coverUrl?: string
   openLibraryWorkId?: string
   workId?: string // Included in API response
+  // Enriched data fields
+  googleBooksVolumeId?: string
+  subjects?: string[]
+  genres?: string[]
+  pageCount?: number
+  publicationYear?: number
+  lastEnrichedAt?: string
 }
 
 // User rating type (from API response after saving)
@@ -63,6 +82,10 @@ export default function BookDetailPage({
   const [isEditingRating, setIsEditingRating] = useState(false)
   const [isSavingRating, setIsSavingRating] = useState(false)
   const [ratingError, setRatingError] = useState<string | null>(null)
+
+  // Enrichment state
+  const [isEnrichmentOpen, setIsEnrichmentOpen] = useState(false)
+  const [isRefreshingEnrichment, setIsRefreshingEnrichment] = useState(false)
 
   // Fetch book data on mount
   useEffect(() => {
@@ -201,6 +224,35 @@ export default function BookDetailPage({
     }
   }
 
+  const handleRefreshEnrichment = async () => {
+    if (!book) return
+
+    setIsRefreshingEnrichment(true)
+
+    try {
+      const res = await fetch("/api/books/enrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookId: book.id, force: true }),
+      })
+
+      if (!res.ok) {
+        throw new Error("Failed to refresh enrichment")
+      }
+
+      // Re-fetch the book to get updated data
+      const bookRes = await fetch(`/api/books/isbn/${encodeURIComponent(isbn)}`)
+      if (bookRes.ok) {
+        const { book: updatedBook } = await bookRes.json()
+        setBook(updatedBook)
+      }
+    } catch {
+      // Silently fail - user can try again
+    } finally {
+      setIsRefreshingEnrichment(false)
+    }
+  }
+
   // Loading state
   if (isLoading || status === "loading") {
     return (
@@ -292,7 +344,174 @@ export default function BookDetailPage({
             <Badge variant="secondary" className="font-mono text-xs">
               ISBN: {book.isbn13}
             </Badge>
+            {!!book.pageCount && (
+              <Badge variant="outline" className="text-xs">
+                {book.pageCount} pages
+              </Badge>
+            )}
+            {book.publicationYear && (
+              <Badge variant="outline" className="text-xs">
+                {book.publicationYear}
+              </Badge>
+            )}
           </div>
+
+          {/* Enriched Data Section */}
+          <Collapsible
+            open={isEnrichmentOpen}
+            onOpenChange={setIsEnrichmentOpen}
+            className="mt-4"
+          >
+            <div className="flex items-center gap-2">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground">
+                  <Database className="h-4 w-4" />
+                  Book Details
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform ${isEnrichmentOpen ? "rotate-180" : ""}`}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRefreshEnrichment}
+                disabled={isRefreshingEnrichment}
+                className="gap-1.5 text-muted-foreground"
+                title="Refresh enrichment data from external sources"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${isRefreshingEnrichment ? "animate-spin" : ""}`}
+                />
+                {isRefreshingEnrichment ? "Refreshing..." : "Refresh"}
+              </Button>
+            </div>
+            <CollapsibleContent className="mt-3">
+              <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {/* Open Library Work ID */}
+                  {book.openLibraryWorkId && (
+                    <div className="flex items-start gap-2">
+                      <BookOpen className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium text-foreground">Open Library Work ID</p>
+                        <a
+                          href={`https://openlibrary.org/works/${book.openLibraryWorkId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
+                          {book.openLibraryWorkId}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Google Books Volume ID */}
+                  {book.googleBooksVolumeId && (
+                    <div className="flex items-start gap-2">
+                      <Hash className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium text-foreground">Google Books Volume ID</p>
+                        <a
+                          href={`https://books.google.com/books?id=${book.googleBooksVolumeId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
+                          {book.googleBooksVolumeId}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  {/* Page Count */}
+                  {!!book.pageCount && (
+                    <div className="flex items-start gap-2">
+                      <BookOpen className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium text-foreground">Page Count</p>
+                        <p className="text-muted-foreground">{book.pageCount} pages</p>
+                        <p className="text-xs text-muted-foreground">Source: Google Books</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Publication Year */}
+                  {book.publicationYear && (
+                    <div className="flex items-start gap-2">
+                      <Calendar className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium text-foreground">Publication Year</p>
+                        <p className="text-muted-foreground">{book.publicationYear}</p>
+                        <p className="text-xs text-muted-foreground">Source: Google Books</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Subjects */}
+                {book.subjects && book.subjects.length > 0 && (
+                  <div className="mt-4 border-t border-border pt-3">
+                    <div className="flex items-start gap-2">
+                      <Tag className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      <div className="flex-1">
+                        <p className="font-medium text-foreground">Subjects</p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {book.subjects.slice(0, 10).map((subject) => (
+                            <Badge key={subject} variant="secondary" className="text-xs font-normal">
+                              {subject}
+                            </Badge>
+                          ))}
+                          {book.subjects.length > 10 && (
+                            <Badge variant="outline" className="text-xs font-normal">
+                              +{book.subjects.length - 10} more
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">Source: Open Library</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Genres */}
+                {book.genres && book.genres.length > 0 && (
+                  <div className="mt-3 border-t border-border pt-3">
+                    <div className="flex items-start gap-2">
+                      <Tag className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      <div className="flex-1">
+                        <p className="font-medium text-foreground">Genres</p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {book.genres.map((genre) => (
+                            <Badge key={genre} variant="secondary" className="text-xs font-normal">
+                              {genre}
+                            </Badge>
+                          ))}
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">Source: Google Books</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Last Enriched */}
+                {book.lastEnrichedAt && (
+                  <div className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
+                    Last updated:{" "}
+                    {new Date(book.lastEnrichedAt).toLocaleDateString("en-US", {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
           {/* User Rating Section */}
           <div className="mt-8">

@@ -1,12 +1,14 @@
 "use client"
 
-import { BookOpen } from "lucide-react"
+import Link from "next/link"
+import { BookOpen, ExternalLink } from "lucide-react"
 import { StarRating } from "@/components/star-rating"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
 export interface SimilarBook {
   id: string
+  isbn13?: string | null
   title: string
   authors: string[]
   yourRating: number
@@ -41,17 +43,10 @@ export function SimilarBookCard({
   const visibleTerms = book.matchingTerms.slice(0, MAX_VISIBLE_TERMS)
   const hiddenCount = book.matchingTerms.length - MAX_VISIBLE_TERMS
   const hasMatchingTerms = book.matchingTerms.length > 0
+  const hasLink = !!book.isbn13
 
-  return (
-    <div
-      className={cn(
-        "rounded-lg border bg-card p-4 transition-colors",
-        isLowConfidence
-          ? "border-warning/30 bg-warning/5"
-          : "border-border hover:border-primary/20",
-        className
-      )}
-    >
+  const cardContent = (
+    <>
       {/* Title row with icon, title, stars, and percentage */}
       <div className="flex items-start gap-3">
         <BookOpen
@@ -64,10 +59,16 @@ export function SimilarBookCard({
         <div className="min-w-0 flex-1">
           {/* Title - truncated with ellipsis */}
           <h4
-            className="line-clamp-1 font-medium text-foreground"
+            className={cn(
+              "line-clamp-1 font-medium text-foreground",
+              hasLink && "group-hover:text-primary"
+            )}
             title={book.title}
           >
             {book.title}
+            {hasLink && (
+              <ExternalLink className="ml-1 inline h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
+            )}
           </h4>
 
           {/* Rating and similarity */}
@@ -104,6 +105,25 @@ export function SimilarBookCard({
           )}
         </div>
       </div>
-    </div>
+    </>
   )
+
+  const cardClasses = cn(
+    "rounded-lg border bg-card p-4 transition-colors",
+    isLowConfidence
+      ? "border-warning/30 bg-warning/5"
+      : "border-border hover:border-primary/20",
+    hasLink && "group cursor-pointer hover:shadow-sm",
+    className
+  )
+
+  if (hasLink) {
+    return (
+      <Link href={`/book/${book.isbn13}`} className={cn(cardClasses, "block")}>
+        {cardContent}
+      </Link>
+    )
+  }
+
+  return <div className={cardClasses}>{cardContent}</div>
 }

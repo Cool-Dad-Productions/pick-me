@@ -33,6 +33,7 @@ export const LOW_CONFIDENCE_THRESHOLD = 0.3;
 
 export interface RatedBook {
   id: string;
+  isbn13: string | null;
   title: string;
   authors: string[];
   subjects: string[];
@@ -44,6 +45,7 @@ export interface RatedBook {
 
 export interface SimilarBook {
   id: string;
+  isbn13: string | null;
   title: string;
   authors: string[];
   rating: number;
@@ -241,6 +243,7 @@ export function predictRating(input: PredictionInput): PredictionOutput {
   const similarBooks: SimilarBook[] = topSimilar.map(
     ({ book, similarity, matchingTerms }) => ({
       id: book.id,
+      isbn13: book.isbn13,
       title: book.title,
       authors: book.authors,
       rating: book.rating,

@@ -8,6 +8,7 @@ const enrichRequestSchema = z.object({
   bookId: z.string().optional(),
   all: z.boolean().optional(),
   batchSize: z.number().min(1).max(100).optional(),
+  force: z.boolean().optional(),
 });
 
 export async function POST(request: Request) {
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { bookId, all, batchSize } = parsed.data;
+    const { bookId, all, batchSize, force } = parsed.data;
 
     // Batch enrichment
     if (all) {
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await enrichBook(bookId);
+    const result = await enrichBook(bookId, { force });
     return NextResponse.json(result);
   } catch (error) {
     console.error('Enrichment error:', error);
