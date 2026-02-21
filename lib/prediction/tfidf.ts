@@ -11,6 +11,7 @@ export interface BookDocument {
   authors: string[];
   subjects: string[];
   genres: string[];
+  tags: string[];
   pageCount: number | null;
   publicationYear: number | null;
 }

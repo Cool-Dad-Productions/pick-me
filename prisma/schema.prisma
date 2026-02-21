@@ -35,6 +35,7 @@ model Book {
   pageCount           Int?
   publicationYear     Int?
   genres              String[]     @default([])
+  tags                String[]     @default([])
 
   @@index([openLibraryWorkId])
   @@index([googleBooksVolumeId])

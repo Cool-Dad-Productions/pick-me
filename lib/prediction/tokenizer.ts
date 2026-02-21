@@ -85,6 +85,7 @@ export function bookToText(book: {
   authors: string[];
   subjects: string[];
   genres: string[];
+  tags: string[];
   pageCount: number | null;
   publicationYear: number | null;
 }): string {
@@ -92,9 +93,10 @@ export function bookToText(book: {
   const authorText = book.authors.join(' ');
   const subjectText = book.subjects.join(' ');
   const genreText = book.genres.join(' ');
+  const tagText = book.tags.join(' ');
   const lengthBucket = bucketPageCount(book.pageCount);
   const eraBucket = bucketYear(book.publicationYear);
 
-  // Weight: title 2x, genres 2x, subjects 1x, authors 1x, buckets 1x
-  return `${titleText} ${titleText} ${authorText} ${subjectText} ${genreText} ${genreText} ${lengthBucket} ${eraBucket}`;
+  // Weight: title 2x, genres 2x, subjects 1x, authors 1x, tags 1x, buckets 1x
+  return `${titleText} ${titleText} ${authorText} ${subjectText} ${genreText} ${genreText} ${tagText} ${lengthBucket} ${eraBucket}`;
 }
