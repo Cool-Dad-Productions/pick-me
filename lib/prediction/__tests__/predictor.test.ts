@@ -91,6 +91,7 @@ describe('predictRating', () => {
     authors: ['Author'],
     subjects,
     genres: options?.genres ?? [],
+    tags: [],
     pageCount: options?.pageCount ?? null,
     publicationYear: options?.publicationYear ?? null,
   });
@@ -108,6 +109,7 @@ describe('predictRating', () => {
     authors: ['Author'],
     subjects,
     genres: options?.genres ?? [],
+    tags: [],
     pageCount: options?.pageCount ?? null,
     publicationYear: options?.publicationYear ?? null,
     rating,

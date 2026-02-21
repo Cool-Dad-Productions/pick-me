@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { Prisma } from '@prisma/client';
 import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { importCommitSchema, normalizeRating, normalizeIsbn } from '@/lib/validations';
+import { importCommitSchema, normalizeRating, normalizeIsbn, tagsSchema } from '@/lib/validations';
 import { generateSyntheticWorkId } from '@/lib/books/workId';
 import { lookupWorkIdByIsbn } from '@/lib/books/openlibrary';
 
@@ -34,8 +34,10 @@ interface ErrorDetail {
 interface ResolvedImport {
   workId: string;
   bookId: string;
+  openLibraryWorkId: string | null;
   rating: number;
   rowIndex: number;
+  tags: string[] | null;
 }
 
 // Delay between OpenLibrary API calls (1 second)
@@ -145,6 +147,7 @@ export async function POST(request: Request) {
     const authorIdx = headers.indexOf(columnMap.author);
     const ratingIdx = headers.indexOf(columnMap.rating);
     const isbnIdx = columnMap.isbn ? headers.indexOf(columnMap.isbn) : -1;
+    const tagsIdx = columnMap.tags ? headers.indexOf(columnMap.tags) : -1;
 
     if (titleIdx === -1 || authorIdx === -1 || ratingIdx === -1) {
       return NextResponse.json(
@@ -250,11 +253,26 @@ export async function POST(request: Request) {
         // Resolve work ID (with rate limiting for OpenLibrary calls)
         const workId = await resolveWorkIdWithRateLimit(book, lastCallTime, stats);
 
+        // Parse tags if column is mapped and cell is non-empty
+        let importedTags: string[] | null = null;
+        if (tagsIdx >= 0) {
+          const rawTags = row[tagsIdx]?.trim();
+          if (rawTags) {
+            const parsed = rawTags.split(',').map((t) => t.trim()).filter(Boolean);
+            const tagResult = tagsSchema.safeParse(parsed);
+            if (tagResult.success) {
+              importedTags = tagResult.data;
+            }
+          }
+        }
+
         resolved.push({
           workId,
           bookId: book.id,
+          openLibraryWorkId: book.openLibraryWorkId,
           rating,
           rowIndex,
+          tags: importedTags,
         });
       } catch (err) {
         console.error('Row import error:', err);
@@ -317,6 +335,21 @@ export async function POST(request: Request) {
           stats.workRatingsUpdated++;
         } else {
           stats.workRatingsCreated++;
+        }
+
+        // Update book tags if the tags column was mapped and this row had tag data
+        if (item.tags !== null) {
+          if (item.openLibraryWorkId) {
+            await db.book.updateMany({
+              where: { openLibraryWorkId: item.openLibraryWorkId },
+              data: { tags: item.tags },
+            });
+          } else {
+            await db.book.update({
+              where: { id: item.bookId },
+              data: { tags: item.tags },
+            });
+          }
         }
       } catch (err) {
         console.error(`Error creating WorkRating for work ${workId}:`, err);

@@ -80,6 +80,7 @@ export const columnMappingSchema = z.object({
   rating: z.string().min(1),
   isbn: z.string().optional(),
   date: z.string().optional(),
+  tags: z.string().optional(),
 });
 
 export const importCommitSchema = z.object({
