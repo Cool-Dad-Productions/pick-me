@@ -27,4 +27,5 @@ export interface ColumnMapping {
   rating: string
   isbn?: string
   date?: string
+  tags?: string
 }

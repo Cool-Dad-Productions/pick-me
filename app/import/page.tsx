@@ -45,6 +45,7 @@ const REQUIRED_FIELDS: { key: keyof ColumnMapping; label: string; required: bool
   { key: "rating", label: "Rating", required: true },
   { key: "isbn", label: "ISBN", required: false },
   { key: "date", label: "Date Read", required: false },
+  { key: "tags", label: "Tags", required: false },
 ]
 
 export default function ImportPage() {
@@ -154,6 +155,7 @@ export default function ImportPage() {
         rating: mapping.rating,
         isbn: mapping.isbn,
         date: mapping.date,
+        tags: mapping.tags,
       }
 
       const res = await fetch("/api/import/commit", {

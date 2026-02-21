@@ -121,6 +121,7 @@ describe('bookToText', () => {
       authors: ['Patrick Rothfuss'],
       subjects: ['fantasy', 'magic'],
       genres: ['Fantasy', 'Epic'],
+      tags: [],
       pageCount: 300,
       publicationYear: 2007,
     };
@@ -150,6 +151,7 @@ describe('bookToText', () => {
       authors: [],
       subjects: [],
       genres: [],
+      tags: [],
       pageCount: null,
       publicationYear: null,
     };
@@ -165,6 +167,7 @@ describe('bookToText', () => {
       authors: ['Author One', 'Author Two'],
       subjects: [],
       genres: [],
+      tags: [],
       pageCount: null,
       publicationYear: null,
     };
@@ -178,6 +181,7 @@ describe('bookToText', () => {
       authors: [],
       subjects: ['fantasy', 'magic', 'adventure'],
       genres: [],
+      tags: [],
       pageCount: null,
       publicationYear: null,
     };
@@ -191,6 +195,7 @@ describe('bookToText', () => {
       authors: ['Old Author'],
       subjects: [],
       genres: [],
+      tags: [],
       pageCount: 150,
       publicationYear: 1925,
     };
@@ -205,6 +210,7 @@ describe('bookToText', () => {
       authors: [],
       subjects: [],
       genres: ['Fiction'],
+      tags: [],
       pageCount: null,
       publicationYear: 2020,
     };
@@ -221,6 +227,7 @@ describe('bookToText', () => {
       authors: [],
       subjects: [],
       genres: ['Fiction'],
+      tags: [],
       pageCount: 500,
       publicationYear: null,
     };
