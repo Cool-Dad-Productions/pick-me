@@ -5,6 +5,8 @@ import { authOptions } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { needsEnrichment, enrichBook } from '@/lib/books/enrichment';
 import { getWorkIdForBook } from '@/lib/books/workId';
+import { tagsSchema } from '@/lib/validations';
+import { z } from 'zod';
 
 export async function GET(
   request: Request,
@@ -78,6 +80,56 @@ export async function GET(
     console.error('Book fetch error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch book' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ bookId: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { bookId } = await params;
+
+    const body = await request.json();
+    const result = z.object({ tags: tagsSchema }).safeParse(body);
+    if (!result.success) {
+      return NextResponse.json({ error: result.error.flatten() }, { status: 400 });
+    }
+
+    const book = await db.book.findUnique({
+      where: { id: bookId },
+      select: { openLibraryWorkId: true },
+    });
+
+    if (!book) {
+      return NextResponse.json({ error: 'Book not found' }, { status: 404 });
+    }
+
+    // Work-level propagation: update all editions sharing the same work ID
+    if (book.openLibraryWorkId) {
+      await db.book.updateMany({
+        where: { openLibraryWorkId: book.openLibraryWorkId },
+        data: { tags: result.data.tags },
+      });
+    } else {
+      await db.book.update({
+        where: { id: bookId },
+        data: { tags: result.data.tags },
+      });
+    }
+
+    return NextResponse.json({ tags: result.data.tags });
+  } catch (error) {
+    console.error('Tag update error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update tags' },
       { status: 500 }
     );
   }

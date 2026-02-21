@@ -91,6 +91,17 @@ export const predictSchema = z.object({
   bookId: z.string().min(1),
 });
 
+export const tagsSchema = z
+  .array(
+    z.string()
+      .trim()
+      .min(1, 'Tag must not be empty')
+      .max(100, 'Tag must be 100 characters or fewer')
+      .transform((s) => s.toLowerCase())
+  )
+  .max(50, 'Maximum 50 tags per book')
+  .transform((tags) => [...new Set(tags.filter((t) => t.length > 0))]);
+
 export const bookSearchSchema = z.object({
   q: z.string().optional(),
   title: z.string().optional(),

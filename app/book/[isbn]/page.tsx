@@ -27,6 +27,7 @@ import {
   Tag,
   Hash,
 } from "lucide-react"
+import { Input } from "@/components/ui/input"
 import {
   Collapsible,
   CollapsibleContent,
@@ -46,6 +47,7 @@ interface ApiBook {
   googleBooksVolumeId?: string
   subjects?: string[]
   genres?: string[]
+  tags?: string[]
   pageCount?: number
   publicationYear?: number
   lastEnrichedAt?: string
@@ -87,6 +89,13 @@ export default function BookDetailPage({
   const [isEnrichmentOpen, setIsEnrichmentOpen] = useState(false)
   const [isRefreshingEnrichment, setIsRefreshingEnrichment] = useState(false)
 
+  // Tags state
+  const [tags, setTags] = useState<string[]>([])
+  const [isEditingTags, setIsEditingTags] = useState(false)
+  const [tagsInput, setTagsInput] = useState("")
+  const [isSavingTags, setIsSavingTags] = useState(false)
+  const [tagsError, setTagsError] = useState<string | null>(null)
+
   // Fetch book data on mount
   useEffect(() => {
     async function fetchBook() {
@@ -122,6 +131,7 @@ export default function BookDetailPage({
           userRating: number | null
         }
         setBook(bookData)
+        setTags(bookData.tags ?? [])
 
         // Set user's work-level rating if exists (returned from API)
         if (existingRating !== null) {
@@ -250,6 +260,43 @@ export default function BookDetailPage({
       // Silently fail - user can try again
     } finally {
       setIsRefreshingEnrichment(false)
+    }
+  }
+
+  const handleTagsSave = async () => {
+    if (!book) return
+
+    const parsed = tagsInput
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter((t) => t.length > 0)
+
+    setIsSavingTags(true)
+    setTagsError(null)
+
+    try {
+      const res = await fetch(`/api/books/${book.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags: parsed }),
+      })
+
+      if (!res.ok) {
+        throw new Error("Failed to save tags")
+      }
+
+      const { tags: saved } = await res.json()
+      setTags(saved)
+      setIsEditingTags(false)
+
+      // Clear prediction since tags now affect similarity scoring
+      if (prediction) {
+        setPrediction(null)
+      }
+    } catch {
+      setTagsError("Failed to save tags. Please try again.")
+    } finally {
+      setIsSavingTags(false)
     }
   }
 
@@ -512,6 +559,77 @@ export default function BookDetailPage({
               </div>
             </CollapsibleContent>
           </Collapsible>
+
+          {/* User Tags Section */}
+          <div className="mt-6 rounded-lg border border-border bg-card p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Tag className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium text-foreground">Your Tags</p>
+              </div>
+              {!isEditingTags && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setTagsInput(tags.join(", "))
+                    setIsEditingTags(true)
+                  }}
+                  className="gap-1.5"
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit
+                </Button>
+              )}
+            </div>
+
+            {isEditingTags ? (
+              <div className="mt-3 space-y-2">
+                <Input
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                  placeholder="slow burn, coming of age, unreliable narrator"
+                  disabled={isSavingTags}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleTagsSave()
+                    if (e.key === "Escape") setIsEditingTags(false)
+                  }}
+                  autoFocus
+                />
+                <p className="text-xs text-muted-foreground">
+                  Separate tags with commas. Tags are shared across all editions of this work.
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleTagsSave} disabled={isSavingTags}>
+                    {isSavingTags ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsEditingTags(false)}
+                    disabled={isSavingTags}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                {tagsError && (
+                  <p className="text-xs text-destructive">{tagsError}</p>
+                )}
+              </div>
+            ) : tags.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {tags.map((tag) => (
+                  <Badge key={tag} variant="outline" className="text-xs font-normal">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">
+                No tags yet — click Edit to add some.
+              </p>
+            )}
+          </div>
 
           {/* User Rating Section */}
           <div className="mt-8">
