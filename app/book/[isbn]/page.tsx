@@ -565,7 +565,7 @@ export default function BookDetailPage({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Tag className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm font-medium text-foreground">Your Tags</p>
+                <p className="text-sm font-medium text-foreground">Community Tags</p>
               </div>
               {!isEditingTags && (
                 <Button
