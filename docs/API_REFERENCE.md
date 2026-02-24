@@ -37,6 +37,7 @@ Create a new user account.
 **Errors:**
 - 400: `{ "error": "Email already registered" }` or validation error
 - 500: `{ "error": "Registration failed" }`
+- 503: `{ "error": "Sign ups are disabled at this time" }` — `ENABLE_SIGN_UP` is not set to `"true"`
 
 ---
 
