@@ -4,6 +4,13 @@ import { db } from '@/lib/db';
 import { registerSchema } from '@/lib/validations';
 
 export async function POST(request: Request) {
+  if (process.env.ENABLE_SIGN_UP !== 'true') {
+    return NextResponse.json(
+      { error: 'Sign ups are disabled at this time' },
+      { status: 503 }
+    );
+  }
+
   try {
     const body = await request.json();
     const result = registerSchema.safeParse(body);

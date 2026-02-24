@@ -51,6 +51,7 @@ pnpm dev                 # Start on http://localhost:3000
 | `DATABASE_URL` | Neon connection string for your `dev` branch |
 | `NEXTAUTH_SECRET` | Random string for JWT signing (`openssl rand -base64 32`) |
 | `NEXTAUTH_URL` | `http://localhost:3000` for local development |
+| `ENABLE_SIGN_UP` | Set to `"true"` to allow new registrations; omit or set to any other value to disable sign ups |
 
 > Variables **without** a `NEXT_PUBLIC_` prefix are never sent to the browser. Keep all secrets unprefixed.
 
@@ -236,6 +237,7 @@ Set the following environment variables in the Vercel dashboard, scoped per envi
 - `DATABASE_URL`
 - `NEXTAUTH_SECRET`
 - `NEXTAUTH_URL`
+- `ENABLE_SIGN_UP` (optional — omit to keep sign ups closed)
 
 `next.config.js` whitelists `covers.openlibrary.org` as a trusted image host. Next.js image optimization is disabled (`unoptimized: true`) to avoid Vercel bandwidth costs on cover images.
 
